@@ -8,13 +8,13 @@ aws_config:
 
 postgres-config:
   # ohio rds
-  user: prospectstaging
-  password: ProsPectStaGinG0247
-  db_ip: prospectstaging.coa9py3oujfl.us-east-2.rds.amazonaws.com
+  user: postgres
+  password: postgres
+  db_ip: localhost
   port: 5432
-  database: data_acquisition
+  database: postgres
   twitter.feed.table: data_stream.twitter_feeds
   news.feed.table: data_stream.news_feeds
   twitter.metadata.table: data_stream.twitter_metadata
-  comany_list_table: data_stream.companies_to_track
+  comany_list_table: data_stream.handles_to_track
 

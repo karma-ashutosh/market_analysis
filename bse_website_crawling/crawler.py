@@ -1,5 +1,7 @@
 # import libraries
-import urllib3
+import url
+
+lib3
 from bs4 import BeautifulSoup
 
 # todo https://urllib3.readthedocs.io/en/latest/user-guide.html#ssl

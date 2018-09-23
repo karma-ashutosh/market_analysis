@@ -11,7 +11,7 @@ from postgres_io import PostgresIO
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
-with open('./config.yaml') as handle:
+with open('./config.yml') as handle:
     config = yaml.load(handle)
 feed_table = config['postgres-config']['twitter.feed.table']
 companies_to_track_table = config['postgres-config']['comany_list_table']
@@ -203,8 +203,9 @@ if __name__ == '__main__':
         request_count = 0
         eventThrottler = EventThrottler(window_length_minutes=15, max_event_count_per_window=1000)
         startTime = getCurrentTimeStamp()
-        twitter_handles = list(map(lambda j: j['twitter'].split("/")[1],
-                                   postgres.execute(['SELECT twitter FROM {} WHERE twitter_status = true'
+        # .rsplit("/", 1)[1]
+        twitter_handles = list(map(lambda j: j['handle'],
+                                   postgres.execute(['SELECT handle FROM {} WHERE parse_flag = true'
                                                     .format(companies_to_track_table)])['result']))
         for twitter_handle in twitter_handles:
             eventThrottler.pauseIfLimitHit()
