@@ -1,0 +1,20 @@
+aws_config:
+  aws.secret.access.key: ifbxHc+6LSTOpAG4v9IiCGmQ1Um8BCJslMvupJhm
+  aws.access.key.id: AKIAJAMZK2VGKQIOQ3VQ
+  bucket: pipecandy-ohio
+  sqs.region: us-east-2
+  s3.region: us-east-2
+
+
+postgres-config:
+  # ohio rds
+  user: prospectstaging
+  password: ProsPectStaGinG0247
+  db_ip: prospectstaging.coa9py3oujfl.us-east-2.rds.amazonaws.com
+  port: 5432
+  database: data_acquisition
+  twitter.feed.table: data_stream.twitter_feeds
+  news.feed.table: data_stream.news_feeds
+  twitter.metadata.table: data_stream.twitter_metadata
+  comany_list_table: data_stream.companies_to_track
+
