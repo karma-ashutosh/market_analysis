@@ -1,8 +1,19 @@
 import datetime
+import logging
 import re
+
 import requests
+import yaml
 from bs4 import BeautifulSoup
-import json
+
+from postgres_io import PostgresIO
+
+with open('./config.yml') as handle:
+    config = yaml.load(handle)
+feed_table = config['postgres-config']['twitter.feed.table']
+postgres = PostgresIO(config['postgres-config'])
+postgres.connect()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 
 def parse_url(text: str) -> str:
@@ -56,4 +67,14 @@ def process_tweet(tweet: str):
         file_paths.append(file_path)
         download_file(link, file_path)
         counter = counter + 1
+
+
+if __name__ == '__main__':
+
+    query = "SELECT user_text, user_status_id from {} WHERE processed = false"
+    results = postgres.execute([query.format(feed_table)])['result']
+    for result in results:
+        process_tweet(result.get("user_text"))
+        postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id={}"
+                         .format(feed_table, result.get("user_status_id"))])
 

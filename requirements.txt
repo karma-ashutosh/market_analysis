@@ -1,6 +1,6 @@
 psycopg2==2.7.5
 requests==2.19.1
+url==0.4.2
 beautifulsoup4==4.6.3
 python_twitter==3.4.2
-url==0.4.2
 PyYAML==3.13
