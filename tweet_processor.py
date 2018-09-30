@@ -1,3 +1,4 @@
+import datetime
 import re
 import requests
 from bs4 import BeautifulSoup
@@ -8,7 +9,7 @@ def parse_url(text: str) -> str:
     re.search("(?P<url>https?://[^\s]+)", text).group("url")
 
 
-def get_from_tiny(url):
+def get_bse_content_from_url(url) -> dict:
     r = requests.get(url)
     soup = BeautifulSoup(r.text, "html.parser")
     f = filter(lambda url: url.endswith(".pdf"),
@@ -29,4 +30,30 @@ def get_from_tiny(url):
         'original_url': url,
         'redirect_history': list(map(lambda x: x.url, r.history))
     }
-    return json.dumps(company_details)
+    return company_details
+
+
+def download_file(download_url, write_path):
+    response = requests.get(download_url)
+    file = open(write_path, 'wb')
+    file.write(response.content)
+    file.close()
+
+
+def process_tweet(tweet: str):
+    bse_url = parse_url(tweet)
+    tweet_details = get_bse_content_from_url(bse_url)
+
+    def get(key):
+        return tweet_details.get(key)
+
+    now = datetime.datetime.now()
+    date_str = "{}-{}-{}".format(now.year, now.month, now.day)
+    counter = 0
+    file_paths = []
+    for link in tweet_details.get('pdf_links'):
+        file_path = "/tmp/{}_{}_{}_()".format(get('security_code'), get('company_name'), date_str, counter)
+        file_paths.append(file_path)
+        download_file(link, file_path)
+        counter = counter + 1
+
