@@ -6,6 +6,7 @@ import requests
 import yaml
 from bs4 import BeautifulSoup
 
+from general_util import send_mail
 from postgres_io import PostgresIO
 
 with open('./config.yml') as handle:
@@ -15,6 +16,9 @@ data_dir = config['twitter-config']['tweet_data_dir']
 postgres = PostgresIO(config['postgres-config'])
 postgres.connect()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+
+mail_username = config['email-config']['username']
+mail_password = config['email-config']['password']
 
 
 def parse_url(text: str) -> str:
@@ -68,6 +72,9 @@ def process_tweet(tweet: str):
         file_paths.append(file_path)
         download_file(link, file_path)
         counter = counter + 1
+    send_mail(mail_username, mail_password, "Announcement for {}".format(get('company_name')),
+              "tweet url: {}".format(tweet),
+              ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], file_paths)
 
 
 if __name__ == '__main__':

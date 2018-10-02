@@ -15,7 +15,7 @@ from os.path import basename
 
 import yaml
 
-with open('./config.yaml') as handle:
+with open('./config.yml') as handle:
     config_dict = yaml.load(handle)
 
 
@@ -117,6 +117,7 @@ def gunzip(obj):
 
 
 def send_mail(username: str, password: str, subject: str, body: str, to_addrs: list, attachments=None):
+    print("sending mail")
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.ehlo()
     server.starttls()
