@@ -9,8 +9,8 @@ aws_config:
 postgres-config:
   # ohio rds
   user: postgres
-  password: postgres
-  db_ip: localhost
+  password: postgrespassword
+  db_ip: market-poc-alpha-1.ctay8oofrwrd.ap-south-1.rds.amazonaws.com
   port: 5432
   database: postgres
   twitter.feed.table: data_stream.twitter_feeds
@@ -18,3 +18,9 @@ postgres-config:
   twitter.metadata.table: data_stream.twitter_metadata
   comany_list_table: data_stream.handles_to_track
 
+twitter-config:
+  tweet_data_dir: /Users/ashutosh.v/Documents/twitter_pdfs
+
+email-config:
+  username: mechkcoders@gmail.com
+  password: password@gmail

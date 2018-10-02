@@ -7,8 +7,11 @@ import os
 import smtplib
 import subprocess
 import threading
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
+from os.path import basename
 
 import yaml
 
@@ -113,19 +116,29 @@ def gunzip(obj):
     return lines
 
 
-def send_mail(username: str, password: str, subject: str, body: str, to_addrs: list):
+def send_mail(username: str, password: str, subject: str, body: str, to_addrs: list, attachments=None):
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.ehlo()
     server.starttls()
     server.login(username, password)
-    msg_text = '''\
-From: {}
-Subject: {}
 
-{}
-'''.format(username, subject, body)
     msg = MIMEMultipart()
-    msg.attach(MIMEText(msg_text))
+    msg['From'] = username
+    msg['To'] = COMMASPACE.join(to_addrs)
+    msg['Date'] = formatdate(localtime=True)
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body))
+
+    for f in attachments or []:
+        with open(f, "rb") as fil:
+            part = MIMEApplication(
+                fil.read(),
+                Name=basename(f)
+            )
+        # After the file is closed
+        part['Content-Disposition'] = 'attachment; filename="%s"' % basename(f)
+        msg.attach(part)
+
     server.sendmail(username, to_addrs, msg.as_string())
     server.quit()
 

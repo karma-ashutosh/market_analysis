@@ -11,13 +11,14 @@ from postgres_io import PostgresIO
 with open('./config.yml') as handle:
     config = yaml.load(handle)
 feed_table = config['postgres-config']['twitter.feed.table']
+data_dir = config['twitter-config']['tweet_data_dir']
 postgres = PostgresIO(config['postgres-config'])
 postgres.connect()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 
 def parse_url(text: str) -> str:
-    re.search("(?P<url>https?://[^\s]+)", text).group("url")
+    return re.search("(?P<url>https?://[^\s]+)", text).group("url")
 
 
 def get_bse_content_from_url(url) -> dict:
@@ -63,7 +64,7 @@ def process_tweet(tweet: str):
     counter = 0
     file_paths = []
     for link in tweet_details.get('pdf_links'):
-        file_path = "/tmp/{}_{}_{}_()".format(get('security_code'), get('company_name'), date_str, counter)
+        file_path = "{}/{}_{}_{}_{}.pdf".format(data_dir, get('security_code'), get('company_name'), date_str, counter)
         file_paths.append(file_path)
         download_file(link, file_path)
         counter = counter + 1
@@ -72,9 +73,14 @@ def process_tweet(tweet: str):
 if __name__ == '__main__':
 
     query = "SELECT user_text, user_status_id from {} WHERE processed = false"
-    results = postgres.execute([query.format(feed_table)])['result']
+    results = postgres.execute([query.format(feed_table)], fetch_result=True)['result']
     for result in results:
-        process_tweet(result.get("user_text"))
-        postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id={}"
-                         .format(feed_table, result.get("user_status_id"))])
+        url = parse_url(result.get("user_text"))
+        print("usertext is {}".format(result.get("user_text")))
+        print("url is {}".format(url))
+        print("user status id: {}".format(result.get("user_status_id")))
+        process_tweet(url)
+        print(postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
+                               .format(feed_table, result.get("user_status_id"))], fetch_result=False))
+        break
 

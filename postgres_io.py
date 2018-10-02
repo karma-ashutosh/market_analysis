@@ -52,7 +52,7 @@ class PostgresIO(object):
         self._ensure_not_connected()
         self._port = port
 
-    def execute(self, query_list: list):
+    def execute(self, query_list: list, fetch_result=False):
         exception_list = []
         for query in query_list:
             try:
@@ -62,7 +62,7 @@ class PostgresIO(object):
                 self.connection.rollback()
         self.connection.commit()
         try:
-            execution_result = list(map(lambda dictRow: dict(dictRow), self.cursor.fetchall()))
+            execution_result = list(map(lambda dictRow: dict(dictRow), self.cursor.fetchall())) if fetch_result else []
         except:
             execution_result = None
             exception_list.append(('fetch_result', traceback.format_exc()))
@@ -76,5 +76,5 @@ class PostgresIO(object):
             values = ",".join(map(lambda s: "'" + str(s).replace("'", "''") + "'", [j_elem.get(key) for key in keys]))
             statement = query.format(table_name, ", ".join(list(j_elem.keys())), values)
             query_list.append(statement)
-        return self.execute(query_list)
+        return self.execute(query_list, fetch_result=False)
 

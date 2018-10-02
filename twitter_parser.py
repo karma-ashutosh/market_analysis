@@ -170,7 +170,7 @@ def flush(j_arr: list):
 
 def latestTweetIdForUser(twitter_handle):
     query = "SELECT MAX(user_status_id) FROM {} WHERE user_twitter_handle = '{}'".format(feed_table, twitter_handle)
-    return postgres.execute([query])['result'][0]['max']
+    return postgres.execute([query], fetch_result=True)['result'][0]['max']
 
 
 def execute_with_retry(obj: Thread, retry_count=5, sleep_interval_seconds=1):
@@ -206,7 +206,7 @@ if __name__ == '__main__':
         # .rsplit("/", 1)[1]
         twitter_handles = list(map(lambda j: j['handle'],
                                    postgres.execute(['SELECT handle FROM {} WHERE parse_flag = true'
-                                                    .format(companies_to_track_table)])['result']))
+                                                    .format(companies_to_track_table)], fetch_result=True)['result']))
         for twitter_handle in twitter_handles:
             eventThrottler.pauseIfLimitHit()
             try:
