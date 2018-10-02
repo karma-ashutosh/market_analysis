@@ -222,7 +222,6 @@ if __name__ == '__main__':
             except:
                 logging.exception("exception with handle: {}".format(twitter_handle))
             eventThrottler.incrementEventCount(request_count)
-
         process_new_tweets()
         timeElapsed = getCurrentTimeStamp() - startTime
         sleep_time = 5 * 60 - timeElapsed

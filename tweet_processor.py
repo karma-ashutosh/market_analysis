@@ -81,13 +81,14 @@ def process_new_tweets():
     query = "SELECT user_text, user_status_id from {} WHERE processed = false"
     results = postgres.execute([query.format(feed_table)], fetch_result=True)['result']
     for result in results:
-        url = parse_url(result.get("user_text"))
-        print("usertext is {}".format(result.get("user_text")))
-        print("url is {}".format(url))
-        print("user status id: {}".format(result.get("user_status_id")))
-        process_tweet(url)
-        print(postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
-                               .format(feed_table, result.get("user_status_id"))], fetch_result=False))
+        try:
+            url = parse_url(result.get("user_text"))
+            logging.info("processing user status id: {}".format(result.get("user_status_id")))
+            process_tweet(url)
+            postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
+                             .format(feed_table, result.get("user_status_id"))], fetch_result=False)
+        except:
+            logging.error("Error occurred while processing status id: {}".format(result.get("user_status_id")))
 
 
 if __name__ == '__main__':
