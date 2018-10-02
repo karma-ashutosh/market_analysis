@@ -10,6 +10,8 @@ import twitter
 from postgres_io import PostgresIO
 from datetime import datetime, timedelta
 
+from tweet_processor import process_new_tweets
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 with open('./config.yml') as handle:
     config = yaml.load(handle)
@@ -220,7 +222,10 @@ if __name__ == '__main__':
             except:
                 logging.exception("exception with handle: {}".format(twitter_handle))
             eventThrottler.incrementEventCount(request_count)
+
+        process_new_tweets()
         timeElapsed = getCurrentTimeStamp() - startTime
-        sleep_time = 24 * 60 * 60 - timeElapsed
+        sleep_time = 5 * 60 - timeElapsed
+        sleep_time = 0 if sleep_time < 0 else sleep_time
         logging.info("processing done for the day. Sleeping for {} seconds".format(sleep_time))
         sleep(sleep_time)

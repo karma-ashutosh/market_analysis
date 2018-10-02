@@ -77,8 +77,7 @@ def process_tweet(tweet: str):
               ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], file_paths)
 
 
-if __name__ == '__main__':
-
+def process_new_tweets():
     query = "SELECT user_text, user_status_id from {} WHERE processed = false"
     results = postgres.execute([query.format(feed_table)], fetch_result=True)['result']
     for result in results:
@@ -89,5 +88,8 @@ if __name__ == '__main__':
         process_tweet(url)
         print(postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
                                .format(feed_table, result.get("user_status_id"))], fetch_result=False))
-        break
+
+
+if __name__ == '__main__':
+    process_new_tweets()
 
