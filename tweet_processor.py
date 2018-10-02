@@ -56,7 +56,7 @@ def download_file(download_url, write_path):
     file.close()
 
 
-def process_tweet(tweet: str):
+def process_tweet(tweet: str, user_status_id: str):
     bse_url = parse_url(tweet)
     tweet_details = get_bse_content_from_url(bse_url)
 
@@ -73,7 +73,7 @@ def process_tweet(tweet: str):
         download_file(link, file_path)
         counter = counter + 1
     send_mail(mail_username, mail_password, "Announcement for {}".format(get('company_name')),
-              "tweet url: {}".format(tweet),
+              "bse url: {} and status_id: {}".format(tweet, user_status_id),
               ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], file_paths)
 
 
@@ -84,7 +84,7 @@ def process_new_tweets():
         try:
             url = parse_url(result.get("user_text"))
             logging.info("processing user status id: {}".format(result.get("user_status_id")))
-            process_tweet(url)
+            process_tweet(url, result.get("user_status_id"))
             postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
                              .format(feed_table, result.get("user_status_id"))], fetch_result=False)
         except:
