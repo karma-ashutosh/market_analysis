@@ -82,9 +82,13 @@ def process_new_tweets():
     results = postgres.execute([query.format(feed_table)], fetch_result=True)['result']
     for result in results:
         try:
-            url = parse_url(result.get("user_text"))
-            logging.info("processing user status id: {}".format(result.get("user_status_id")))
-            process_tweet(url, result.get("user_status_id"))
+            user_text = result.get("user_text")
+            if "financial result" in user_text.lower():
+                url = parse_url(user_text)
+                logging.info("processing user status id: {}".format(result.get("user_status_id")))
+                process_tweet(url, result.get("user_status_id"))
+            else:
+                logging.warning("not sending mail for status: {}".format(result.get("user_status_id")))
             postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
                              .format(feed_table, result.get("user_status_id"))], fetch_result=False)
         except:
