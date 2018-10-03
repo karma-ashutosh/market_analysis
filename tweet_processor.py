@@ -83,7 +83,7 @@ def process_new_tweets():
     for result in results:
         try:
             user_text = result.get("user_text")
-            if "financial result" in user_text.lower():
+            if "financial result" in user_text.lower() or "closure" in user_text.lower():
                 url = parse_url(user_text)
                 logging.info("processing user status id: {}".format(result.get("user_status_id")))
                 process_tweet(url, result.get("user_status_id"))
