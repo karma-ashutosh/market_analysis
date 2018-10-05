@@ -77,13 +77,20 @@ def process_tweet(tweet: str, user_status_id: str):
               ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], file_paths)
 
 
+def check_exact(text: str, words_bucket: list):
+    for words in words_bucket:
+        if re.search(r'\b' + words + r'\b', text):
+            return True
+    return False
+
+
 def process_new_tweets():
     query = "SELECT user_text, user_status_id from {} WHERE processed = false"
     results = postgres.execute([query.format(feed_table)], fetch_result=True)['result']
     for result in results:
         try:
             user_text = result.get("user_text")
-            if "financial result" in user_text.lower() or "closure" in user_text.lower():
+            if check_exact(user_text.lower(), ["financial result", "financial results", "closure"]):
                 url = parse_url(user_text)
                 logging.info("processing user status id: {}".format(result.get("user_status_id")))
                 process_tweet(url, result.get("user_status_id"))
