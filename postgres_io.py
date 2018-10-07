@@ -78,3 +78,13 @@ class PostgresIO(object):
             query_list.append(statement)
         return self.execute(query_list, fetch_result=False)
 
+    def insert_or_skip_on_conflict(self, json_array: list, table_name: str, primary_key_columns: list):
+        query_list = []
+        query = "INSERT INTO {} ({}) VALUES({}) ON CONFLICT ({}) DO NOTHING"
+        for j_elem in json_array:
+            keys = j_elem.keys()
+            values = ",".join(map(lambda s: "'" + str(s).replace("'", "''") + "'", [j_elem.get(key) for key in keys]))
+            statement = query.format(table_name, ", ".join(list(j_elem.keys())), values, ", ".join(primary_key_columns))
+            query_list.append(statement)
+        return self.execute(query_list, fetch_result=False)
+

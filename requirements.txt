@@ -1,3 +1,6 @@
+urllib3
+matplotlib
+alpha_vantage
 psycopg2==2.7.5
 requests==2.19.1
 url==0.4.2
