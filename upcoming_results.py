@@ -42,7 +42,6 @@ def parse_and_insert_data(postgres: PostgresIO):
                 'minute_crawling_start_timestamp': str(result_timestamp_seconds),
                 'minute_crawling_stop_timestamp': str(result_timestamp_seconds + days_to_seconds(2)),
                 'crawling_done': 'false',
-
             }
         )
     postgres.insert_or_skip_on_conflict(j_arr, 'share_market_data.upcoming_results', ['symbol', 'result_date'])

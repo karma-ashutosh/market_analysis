@@ -24,3 +24,7 @@ twitter-config:
 email-config:
   username: mechkcoders@gmail.com
   password: password@gmail
+
+alphavantage-config:
+  upcoming.results.table: share_market_data.upcoming_results
+  share.price.table: share_market_data.alphavantage_data_points

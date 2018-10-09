@@ -88,3 +88,4 @@ class PostgresIO(object):
             query_list.append(statement)
         return self.execute(query_list, fetch_result=False)
 
+
