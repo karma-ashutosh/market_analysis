@@ -21,8 +21,8 @@ mail_username = config['email-config']['username']
 mail_password = config['email-config']['password']
 
 
-def parse_url(text: str) -> str:
-    return re.search("(?P<url>https?://[^\s]+)", text).group("url")
+def parse_url(text: str) -> list:
+    return re.findall("(?P<url>https?://[^\s]+)", text)
 
 
 def get_bse_content_from_url(url) -> dict:
@@ -57,24 +57,28 @@ def download_file(download_url, write_path):
 
 
 def process_tweet(tweet: str, user_status_id: str):
-    bse_url = parse_url(tweet)
-    tweet_details = get_bse_content_from_url(bse_url)
+    bse_url_list = parse_url(tweet)
+    for bse_url in bse_url_list:
+        try:
+            tweet_details = get_bse_content_from_url(bse_url)
 
-    def get(key):
-        return tweet_details.get(key)
+            def get(key):
+                return tweet_details.get(key)
 
-    now = datetime.datetime.now()
-    date_str = "{}-{}-{}".format(now.year, now.month, now.day)
-    counter = 0
-    file_paths = []
-    for link in tweet_details.get('pdf_links'):
-        file_path = "{}/{}_{}_{}_{}.pdf".format(data_dir, get('security_code'), get('company_name'), date_str, counter)
-        file_paths.append(file_path)
-        download_file(link, file_path)
-        counter = counter + 1
-    send_mail(mail_username, mail_password, "Announcement for {}".format(get('company_name')),
-              "bse url: {} and status_id: {}".format(tweet, user_status_id),
-              ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], file_paths)
+            now = datetime.datetime.now()
+            date_str = "{}-{}-{}".format(now.year, now.month, now.day)
+            counter = 0
+            file_paths = []
+            for link in tweet_details.get('pdf_links'):
+                file_path = "{}/{}_{}_{}_{}.pdf".format(data_dir, get('security_code'), get('company_name'), date_str, counter)
+                file_paths.append(file_path)
+                download_file(link, file_path)
+                counter = counter + 1
+            send_mail(mail_username, mail_password, "Announcement for {}".format(get('company_name')),
+                      "bse url: {} and status_id: {}".format(tweet, user_status_id),
+                      ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], file_paths)
+        except:
+            logging.exception("Exception while processing url: {} for user_status_id: {}".format(bse_url, user_status_id))
 
 
 def check_exact(text: str, words_bucket: list):
@@ -91,15 +95,14 @@ def process_new_tweets():
         try:
             user_text = result.get("user_text")
             if check_exact(user_text.lower(), ["financial result", "financial results", "closure"]):
-                url = parse_url(user_text)
                 logging.info("processing user status id: {}".format(result.get("user_status_id")))
-                process_tweet(url, result.get("user_status_id"))
+                process_tweet(user_text, result.get("user_status_id"))
             else:
                 logging.warning("not sending mail for status: {}".format(result.get("user_status_id")))
             postgres.execute(["UPDATE {} SET processed=true WHERE user_status_id='{}'"
                              .format(feed_table, result.get("user_status_id"))], fetch_result=False)
         except:
-            logging.error("Error occurred while processing status id: {}".format(result.get("user_status_id")))
+            logging.exception("Error occurred while processing status id: {}".format(result.get("user_status_id")))
 
 
 if __name__ == '__main__':
