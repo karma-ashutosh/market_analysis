@@ -73,18 +73,23 @@ class PostgresIO(object):
         query = "INSERT INTO {} ({}) VALUES({})"
         for j_elem in json_array:
             keys = j_elem.keys()
+            quoted_keys = ['"' + key + '"' for key in j_elem.keys()]
             values = ",".join(map(lambda s: "'" + str(s).replace("'", "''") + "'", [j_elem.get(key) for key in keys]))
-            statement = query.format(table_name, ", ".join(list(j_elem.keys())), values)
+            statement = query.format(table_name, ", ".join(list(quoted_keys)), values)
             query_list.append(statement)
         return self.execute(query_list, fetch_result=False)
 
     def insert_or_skip_on_conflict(self, json_array: list, table_name: str, primary_key_columns: list):
         query_list = []
         query = "INSERT INTO {} ({}) VALUES({}) ON CONFLICT ({}) DO NOTHING"
+
         for j_elem in json_array:
             keys = j_elem.keys()
+            quoted_keys = ['"' + key + '"' for key in j_elem.keys()]
+            quoted_primary_key_columns = ['"' + key + '"' for key in primary_key_columns]
             values = ",".join(map(lambda s: "'" + str(s).replace("'", "''") + "'", [j_elem.get(key) for key in keys]))
-            statement = query.format(table_name, ", ".join(list(j_elem.keys())), values, ", ".join(primary_key_columns))
+            statement = query.format(table_name, ", ".join(list(quoted_keys)), values,
+                                     ", ".join(quoted_primary_key_columns))
             query_list.append(statement)
         return self.execute(query_list, fetch_result=False)
 

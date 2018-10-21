@@ -44,6 +44,11 @@ def get_share_data(symbol: str, exchange: Exchange, interval: Interval) -> list:
         val['exchange'] = exchange.name
         val['stock_symbol'] = symbol
         val['window'] = interval.name
+        val['open'] = val.pop('1. open')
+        val['high'] = val.pop('2. high')
+        val['low'] = val.pop('3. low')
+        val['close'] = val.pop('4. close')
+        val['volume'] = val.pop('5. volume')
         result.append(data.get(key))
     return result
 
@@ -65,6 +70,7 @@ if __name__ == '__main__':
         result_list = postgres.execute([upcoming_results_query], fetch_result=True)['result']
         current_time = datetime.now().timestamp()
         for result in result_list:
+            logging.info("details for company under process {}".format(result))
             exchange = result.get('exchange')
             symbol = result.get('symbol')
             hourly_crawling_start_timestamp = float(result.get('hourly_crawling_start_timestamp'))
@@ -72,12 +78,30 @@ if __name__ == '__main__':
             minute_crawling_start_timestamp = float(result.get('minute_crawling_start_timestamp'))
             minute_crawling_stop_timestamp = float(result.get('minute_crawling_stop_timestamp'))
             share_data_list = []
+            flag1, flag2 = False, False
+
             if float(hourly_crawling_start_timestamp) <= current_time <= float(hourly_crawling_stop_timestamp):
+                flag1 = True
+                logging.debug("getting hourly data")
                 share_data_list.extend(get_share_data(symbol, exchange, Interval.min_60))
 
             if float(minute_crawling_start_timestamp) <= current_time <= float(minute_crawling_stop_timestamp):
+                flag2 = True
+                logging.debug("getting minute-wise data")
                 share_data_list.extend(get_share_data(symbol, Exchange[exchange], Interval.min1))
-            postgres.insert_or_skip_on_conflict(share_data_list, share_price_table, ['exchange', 'stock_symbol', 'date', 'window'])
+
+            logging.info("inserting in postgres")
+            if flag1 or flag2:
+                logging.debug("share_data_list is {}".format(share_data_list))
+                logging.info(postgres.insert_or_skip_on_conflict(share_data_list, share_price_table, ['exchange', 'stock_symbol', 'date', 'window']))
+            else:
+                logging.info("marking row as processed for symbol = '{}' and result_date = '{}'"
+                             .format(result.get('symbol'), result.get('result_date')))
+                postgres.execute([
+                    "UPDATE {} SET crawling_done = true WHERE symbol = '{}' and result_date = '{}'".format(
+                        upcoming_results_table, result.get('symbol'), result.get('result_date')
+                    )
+                ], fetch_result=False)
 
         sleep_time = tomorrow_6_pm - datetime.now()
         logging.info("processing done for the day. Sleeping for {} seconds".format(sleep_time.seconds))
