@@ -9,7 +9,7 @@ import yaml
 import twitter
 from postgres_io import PostgresIO
 from datetime import datetime, timedelta
-
+from general_util import EventThrottler
 from tweet_processor import process_new_tweets
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -56,38 +56,6 @@ class TimeLineRequest(Thread):
                 'exclude_replies': self.exclude_replies
             }
         )
-
-
-class EventThrottler(object):
-    """
-    Throttles the event
-    The implementation is not thread safe
-    """
-    def __init__(self, window_length_minutes: int, max_event_count_per_window: int):
-        super().__init__()
-        self.window_serial_number = 0
-        self.window_len = window_length_minutes
-        self.max_event_count_per_window = max_event_count_per_window
-        self.current_window_event_count = 0
-        self.clock_start_time = getCurrentTimeStamp()
-
-    def incrementEventCount(self, count: int):
-        self.current_window_event_count += count
-
-    def __currentWindowEventLimitReached(self):
-        self.__resetWindowIfRequired()
-        return self.current_window_event_count >= self.max_event_count_per_window
-
-    def pauseIfLimitHit(self):
-        if self.__currentWindowEventLimitReached():
-            sleep(30)
-            self.pauseIfLimitHit()
-
-    def __resetWindowIfRequired(self):
-        calculated_window_serial_number = (getCurrentTimeStamp() - self.clock_start_time) / (self.window_len * 60)
-        if calculated_window_serial_number > self.window_serial_number:
-            self.window_serial_number = calculated_window_serial_number
-            self.current_window_event_count = 0
 
 
 def fetchAndPersistTillEnd(twitter_handle, maxDepth=1000, maxDays=90):

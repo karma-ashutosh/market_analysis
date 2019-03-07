@@ -7,11 +7,14 @@ import os
 import smtplib
 import subprocess
 import threading
+from calendar import timegm
+from datetime import datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 from os.path import basename
+from time import sleep
 
 import yaml
 
@@ -236,3 +239,47 @@ def process_concurrently(input_argument_list: list, processor, post_processor=la
         post_processor_result_list.extend(post_processor(processor_result_list))
         processor_result_list.clear()
     return post_processor_result_list
+
+
+def getCurrentTimeStamp():
+    """
+    :return: Timestamp in seconds
+    """
+    return timegm(datetime.now().utctimetuple())
+
+
+class EventThrottler(object):
+    """
+    Throttles the event
+    The implementation is not thread safe
+    """
+    def __init__(self, window_length_minutes: int, max_event_count_per_window: int):
+        super().__init__()
+        self.window_serial_number = 0
+        self.window_len = window_length_minutes
+        self.max_event_count_per_window = max_event_count_per_window
+        self.current_window_event_count = 0
+        self.clock_start_time = getCurrentTimeStamp()
+
+    def incrementEventCount(self, count: int):
+        self.current_window_event_count = count + self.current_window_event_count
+
+    def __currentWindowEventLimitReached(self):
+        self.__resetWindowIfRequired()
+        logging.info("current_window_event_count: {} and max_event_count_per_window: {}"
+                     .format(self.current_window_event_count, self.max_event_count_per_window))
+        return self.current_window_event_count >= self.max_event_count_per_window
+
+    def pauseIfLimitHit(self, sleep_seconds=30):
+        if self.__currentWindowEventLimitReached():
+            logging.info("eventThrottler putting thread to sleep")
+            sleep(sleep_seconds)
+            self.pauseIfLimitHit()
+
+    def __resetWindowIfRequired(self):
+        calculated_window_serial_number = int((getCurrentTimeStamp() - self.clock_start_time) / (self.window_len * 60))
+        if calculated_window_serial_number > self.window_serial_number:
+            logging.info("resetting window: calculated_window_serial_number: {} and window_serial_number: {}"
+                         .format(calculated_window_serial_number, self.window_serial_number))
+            self.window_serial_number = calculated_window_serial_number
+            self.current_window_event_count = 0

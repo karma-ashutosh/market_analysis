@@ -1,0 +1,281 @@
+:0: UserWarning: You do not have a working installation of the service_identity module: 'No module named 'service_identity''.  Please install it from <https://pypi.python.org/pypi/service_identity> and make sure all of its dependencies are satisfied.  Without the service_identity module, Twisted can perform only rudimentary TLS client hostname verification.  Many valid certificate/hostname mappings may be rejected.
+Error while processing for interval 2016-10-09+00:00:00 - 2016-12-27+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134163204/5minute?from=2016-10-09+00:00:00&to=2016-12-27+00:00:00
+Error while processing for interval 2016-12-27+00:00:00 - 2017-03-16+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134163204/5minute?from=2016-12-27+00:00:00&to=2017-03-16+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134163204/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134163204/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2016-07-21+00:00:00 - 2016-10-09+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/132498180/5minute?from=2016-07-21+00:00:00&to=2016-10-09+00:00:00
+Error while processing for interval 2016-10-09+00:00:00 - 2016-12-27+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/132498180/5minute?from=2016-10-09+00:00:00&to=2016-12-27+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/132498180/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/132498180/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2018-07-06+00:00:00 - 2018-09-23+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/132498180/5minute?from=2018-07-06+00:00:00&to=2018-09-23+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136534020/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136264964/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136264964/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00
+Error while processing for interval 2014-05-19+00:00:00 - 2014-08-07+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134025476/5minute?from=2014-05-19+00:00:00&to=2014-08-07+00:00:00
+Error while processing for interval 2017-06-04+00:00:00 - 2017-08-22+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136502020/5minute?from=2017-06-04+00:00:00&to=2017-08-22+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136502020/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136309764/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00
+Error while processing for interval 2016-07-21+00:00:00 - 2016-10-09+00:00:00
+{"status":"error","message":"Error reading response (kitetrade-common).","data":null,"error_type":"DataException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135877892/5minute?from=2016-07-21+00:00:00&to=2016-10-09+00:00:00
+Error while processing for interval 2017-06-04+00:00:00 - 2017-08-22+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135877892/5minute?from=2017-06-04+00:00:00&to=2017-08-22+00:00:00
+Error while processing for interval 2017-06-04+00:00:00 - 2017-08-22+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138208260/5minute?from=2017-06-04+00:00:00&to=2017-08-22+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138208260/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138208260/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138208260/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2016-02-13+00:00:00 - 2016-05-03+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134286852/5minute?from=2016-02-13+00:00:00&to=2016-05-03+00:00:00
+Error while processing for interval 2016-05-03+00:00:00 - 2016-07-21+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134286852/5minute?from=2016-05-03+00:00:00&to=2016-07-21+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134286852/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134286852/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134286852/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2018-09-23+00:00:00 - 2018-12-12+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134286852/5minute?from=2018-09-23+00:00:00&to=2018-12-12+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138068996/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138068996/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138068996/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138404356/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138404356/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138404356/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2016-10-09+00:00:00 - 2016-12-27+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135730948/5minute?from=2016-10-09+00:00:00&to=2016-12-27+00:00:00
+Error while processing for interval 2016-12-27+00:00:00 - 2017-03-16+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135730948/5minute?from=2016-12-27+00:00:00&to=2017-03-16+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135730948/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135730948/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2016-07-21+00:00:00 - 2016-10-09+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136609796/5minute?from=2016-07-21+00:00:00&to=2016-10-09+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136609796/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status":"error","message":"Error reading response (kitetrade-common).","data":null,"error_type":"DataException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136609796/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2016-12-27+00:00:00 - 2017-03-16+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128104964/5minute?from=2016-12-27+00:00:00&to=2017-03-16+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128104964/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2015-04-02+00:00:00 - 2015-06-20+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128202244/5minute?from=2015-04-02+00:00:00&to=2015-06-20+00:00:00
+Error while processing for interval 2016-12-27+00:00:00 - 2017-03-16+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128202244/5minute?from=2016-12-27+00:00:00&to=2017-03-16+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128202244/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128041988/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2016-12-27+00:00:00 - 2017-03-16+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135802116/5minute?from=2016-12-27+00:00:00&to=2017-03-16+00:00:00
+Error while processing for interval 2017-06-04+00:00:00 - 2017-08-22+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135802116/5minute?from=2017-06-04+00:00:00&to=2017-08-22+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135802116/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status":"error","message":"Error reading response (kitetrade-common).","data":null,"error_type":"DataException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/135802116/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2016-12-27+00:00:00 - 2017-03-16+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134319876/5minute?from=2016-12-27+00:00:00&to=2017-03-16+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Error reading response (kitetrade-common).","data":null,"error_type":"DataException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134319876/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134319876/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00
+Error while processing for interval 2016-05-03+00:00:00 - 2016-07-21+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136276228/5minute?from=2016-05-03+00:00:00&to=2016-07-21+00:00:00
+Error while processing for interval 2017-06-04+00:00:00 - 2017-08-22+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136276228/5minute?from=2017-06-04+00:00:00&to=2017-08-22+00:00:00
+Error while processing for interval 2017-08-22+00:00:00 - 2017-11-10+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136276228/5minute?from=2017-08-22+00:00:00&to=2017-11-10+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136276228/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136276228/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2017-06-04+00:00:00 - 2017-08-22+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136532228/5minute?from=2017-06-04+00:00:00&to=2017-08-22+00:00:00
+Error while processing for interval 2015-01-12+00:00:00 - 2015-04-02+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136677380/5minute?from=2015-01-12+00:00:00&to=2015-04-02+00:00:00
+Error while processing for interval 2018-01-28+00:00:00 - 2018-04-17+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136677380/5minute?from=2018-01-28+00:00:00&to=2018-04-17+00:00:00
+Error while processing for interval 2016-07-21+00:00:00 - 2016-10-09+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128800516/5minute?from=2016-07-21+00:00:00&to=2016-10-09+00:00:00
+Error while processing for interval 2016-10-09+00:00:00 - 2016-12-27+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138315012/5minute?from=2016-10-09+00:00:00&to=2016-12-27+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138315012/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2018-07-06+00:00:00 - 2018-09-23+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/138315012/5minute?from=2018-07-06+00:00:00&to=2018-09-23+00:00:00
+Error while processing for interval 2016-10-09+00:00:00 - 2016-12-27+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128061444/5minute?from=2016-10-09+00:00:00&to=2016-12-27+00:00:00
+Error while processing for interval 2017-03-16+00:00:00 - 2017-06-04+00:00:00
+{"status":"error","message":"Request failed (kitetrade-common).","data":null,"error_type":"NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/128061444/5minute?from=2017-03-16+00:00:00&to=2017-06-04+00:00:00
+Error while processing for interval 2018-04-17+00:00:00 - 2018-07-06+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/134198276/5minute?from=2018-04-17+00:00:00&to=2018-07-06+00:00:00
+Error while processing for interval 2017-11-10+00:00:00 - 2018-01-28+00:00:00
+{"status": "error", "message": "Gateway timed out", "error_type": "NetworkException"}
+<PreparedRequest [GET]>
+https://api.kite.trade/instruments/historical/136302596/5minute?from=2017-11-10+00:00:00&to=2018-01-28+00:00:00

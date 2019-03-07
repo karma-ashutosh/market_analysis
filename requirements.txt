@@ -1,3 +1,4 @@
+kiteconnect
 dateparser
 urllib3
 matplotlib
