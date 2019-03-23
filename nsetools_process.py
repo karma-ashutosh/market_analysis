@@ -1,13 +1,14 @@
-import logging
 from datetime import datetime, timedelta
-from general_util import run_in_background
 from time import sleep
-import yaml
 
-from postgres_io import PostgresIO
+import yaml
 from nsetools import Nse
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+from general_util import run_in_background, setup_logger
+from postgres_io import PostgresIO
+
+logger = setup_logger("nse_logger", "./log_nsetools.log")
+
 with open('./config.yml') as handle:
     config = yaml.load(handle)
 postgres = PostgresIO(config['postgres-config'])
@@ -45,7 +46,7 @@ def should_process_result(result):
 
 
 def get_nse_data(code):
-    print("getting data for code: "+code)
+    logger.info("getting data for code: "+code)
     return nse.get_quote(code)
 
 
@@ -53,6 +54,7 @@ def process():
     upcoming_results_query = "SELECT * FROM {}".format(upcoming_results_date_table)
     result_list = postgres.execute([upcoming_results_query], fetch_result=True)['result']
     results_to_be_processed = list(filter(should_process_result, result_list))
+    logger.info("results to be processed: {}".format(results_to_be_processed))
 
     result_arr = []
 
@@ -69,14 +71,14 @@ def process():
 
     for result in results_to_be_processed:
         try:
-            print("result is " + str(result))
+            logger.info("result is " + str(result))
             stock_quote = get_nse_data(result['security_name'])
             nse_data = {'stock_code': result['security_name'], 'query_time': datetime.now()}
             for key in keys:
                 nse_data[key.lower()] = str(stock_quote.get(key))
             result_arr.append(nse_data)
         except Exception as e:
-            print(e)
+            logger.error(e)
 
     postgres.insert_jarr(result_arr, nse_tools_result_table)
 
