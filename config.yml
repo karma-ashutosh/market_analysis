@@ -28,3 +28,7 @@ email-config:
 alphavantage-config:
   upcoming.results.table: share_market_data.upcoming_results
   share.price.table: share_market_data.alphavantage_data_points
+
+nse_tools_config:
+  nse_tools_upcoming_result_table: nsetools.result_dates
+  nse_tools_result_table: nsetools.stock_price
