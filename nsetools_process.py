@@ -74,8 +74,11 @@ def process():
             logger.info("result is " + str(result))
             stock_quote = get_nse_data(result['security_name'])
             nse_data = {'stock_code': result['security_name'], 'query_time': datetime.now()}
-            for key in keys:
-                nse_data[key.lower()] = str(stock_quote.get(key))
+
+            for key in stock_quote.keys():
+                if key.lower() in keys:
+                    nse_data[key.lower()] = str(stock_quote.get(key))
+
             result_arr.append(nse_data)
         except Exception as e:
             logger.error(e)
