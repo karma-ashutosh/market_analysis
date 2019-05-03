@@ -248,6 +248,52 @@ def getCurrentTimeStamp():
     return timegm(datetime.now().utctimetuple())
 
 
+
+def map_with_percentage_progress(input_list, func, output_container=None, percentages=tuple(range(0, 100, 5))):
+    total_count = len(input_list)
+    progress_count_dict = dict(list(zip((map(lambda percentage: int(percentage * total_count / 100), percentages)),
+                                        percentages)))
+    if output_container:
+        result = output_container
+    else:
+        result = []
+
+    for index in range(total_count):
+        result.append(func(input_list[index]))
+        if index in progress_count_dict.keys():
+            print("completed {} percent job".format(progress_count_dict[index]))
+    return result
+
+
+def read_and_clean_lines(file_path) -> iter:
+    return map(lambda line: line.strip().replace('"', '').split(","), open(file_path).readlines())
+
+
+def file_to_dict_list(file_path) -> list:
+    lines = list(read_and_clean_lines(file_path))
+    header = lines[0]
+    rows = lines[1:]
+
+    def row_to_dict(row):
+        d = {}
+        for index in range(len(header)):
+            d[header[index]] = row[index]
+        return d
+
+    return list(map(row_to_dict, rows))
+
+
+def get_jarr_to_dict(j_arr: list, dict_key_name: str, dict_value_name: str) -> dict:
+    mapping = {}
+    for entry in j_arr:
+        mapping[entry[dict_key_name]] = entry[dict_value_name]
+    return mapping
+
+
+def get_all_values_for_key(j_arr: list, key_name: str) -> list:
+    return list(map(lambda entry: entry[key_name], j_arr))
+
+
 class EventThrottler(object):
     """
     Throttles the event
