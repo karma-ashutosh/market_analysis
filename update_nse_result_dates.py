@@ -11,12 +11,13 @@ def get_human_readable_date(date: str) -> str:
 
 
 def format_date_for_code(nse_date_string: str) -> str:
-    return nse_date_string.replace('Apr', 'April')
+    return nse_date_string.replace('Apr', 'April').replace('Jun', 'June').replace('Jul', 'July').replace('Aug', 'August')
 
 
 def get_insert_json(line: str) -> dict:
-    arr = line.split(",")
-    security_code, security_name, result_date = arr[0], arr[1], format_date_for_code(arr[3])
+    print("parsing")
+    arr = line.split("\t")
+    security_code, security_name, result_date = arr[0], arr[1], format_date_for_code(arr[2])
     return {
         'security_code': security_code,
         'security_name': security_name,
@@ -38,6 +39,6 @@ if __name__ == '__main__':
         config = yaml.load(handle)
     postgres = PostgresIO(config['postgres-config'])
     postgres.connect()
-    j_arr = extract_jarr_from_file('filepath')
+    j_arr = extract_jarr_from_file('text_files/result_dates.txt')
     postgres.insert_or_skip_on_conflict(j_arr, config['nse_tools_config']['nse_tools_upcoming_result_table'],
                                         ['security_code', 'result_date'])

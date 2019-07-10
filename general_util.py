@@ -22,6 +22,13 @@ with open('./config.yml') as handle:
     config_dict = yaml.load(handle)
 
 
+epoch = datetime.utcfromtimestamp(0)
+
+
+def unix_time_millis(dt):
+    return (dt - epoch).total_seconds() * 1000.0
+
+
 def config_section_map(section: str):
     return config_dict.get(section, {})
 
@@ -270,6 +277,7 @@ def read_and_clean_lines(file_path) -> iter:
 
 
 def file_to_dict_list(file_path) -> list:
+    print("loading data from file: {}".format(file_path))
     lines = list(read_and_clean_lines(file_path))
     header = lines[0]
     rows = lines[1:]
@@ -280,7 +288,9 @@ def file_to_dict_list(file_path) -> list:
             d[header[index]] = row[index]
         return d
 
-    return list(map(row_to_dict, rows))
+    result = list(map(row_to_dict, rows))
+    print("data loading completed")
+    return result
 
 
 def get_jarr_to_dict(j_arr: list, dict_key_name: str, dict_value_name: str) -> dict:
@@ -292,6 +302,19 @@ def get_jarr_to_dict(j_arr: list, dict_key_name: str, dict_value_name: str) -> d
 
 def get_all_values_for_key(j_arr: list, key_name: str) -> list:
     return list(map(lambda entry: entry[key_name], j_arr))
+
+
+def group_dict_array_by_key(func, j_arr):
+    print("grouping {} elements of array".format(len(j_arr)))
+    result = {}
+    for j_elem in j_arr:
+        key = func(j_elem)
+        if key in result.keys():
+            result[key].append(j_elem)
+        else:
+            result[key] = [j_elem]
+    print("data grouping completed")
+    return result
 
 
 class EventThrottler(object):
