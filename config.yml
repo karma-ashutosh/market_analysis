@@ -32,3 +32,7 @@ alphavantage-config:
 nse_tools_config:
   nse_tools_upcoming_result_table: nsetools.result_dates
   nse_tools_result_table: nsetools.stock_price
+
+bse_send_result_notification:
+  checkpointing_table: share_market_data.processed_bse_news
+  upcoming_result_table: nsetools.result_dates

@@ -57,7 +57,7 @@ def overwrite_or_merge(target_dict: dict, source_dict: dict, path=None):
     return target_dict
 
 
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+timed_log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 msg_only_formatter = logging.Formatter('%(message)s')
 
 
@@ -72,7 +72,7 @@ def setup_logger(name, log_file, level=logging.INFO, logging_format=True, msg_on
         if msg_only:
             handler.setFormatter(msg_only_formatter)
         else:
-            handler.setFormatter(formatter)
+            handler.setFormatter(timed_log_formatter)
 
     logger = logging.getLogger(name)
     logger.setLevel(level)

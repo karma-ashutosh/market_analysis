@@ -3,3 +3,4 @@
 __pycache__/*
 *.log*
 text_files/*
+bse_notifications/*
