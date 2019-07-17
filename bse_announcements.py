@@ -22,7 +22,6 @@ mail_password = config['email-config']['password']
 
 def should_process_result(result):
     result_date = datetime.strptime(result['result_date'], '%d %B %Y')
-    today = datetime.now()
     return result_date.year == today.year and result_date.month == today.month and result_date.day == today.day
 
 
@@ -48,7 +47,6 @@ def mark_announcement_as_processed(stock_code: str, announcements: list):
 def get_todays_annoucement_for_stock(stock_code) -> list:
     annoucement_url_format = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate={" \
                              "}&strScrip={}&strSearch=P&strToDate={}&strType=C "
-    today = datetime.now()
     # date format -> 20190710 == 10th July, 2019
     url_date= "{}{}{}".format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
     url = annoucement_url_format.format(url_date, stock_code, url_date)
@@ -83,7 +81,8 @@ def send_notification_if_new_bse_update_available(stock_metadata) -> dict:
     stock_code = stock_metadata['security_code']
     unprocessed_announcements = fetch_new_announcements_from_bse(stock_code)
     if len(unprocessed_announcements) > 0:
-        send_notification_for_announcements(stock_code, unprocessed_announcements)
+        security_name = stock_metadata['security_name']
+        send_notification_for_announcements(security_name, unprocessed_announcements)
         mark_announcement_as_processed(stock_code, unprocessed_announcements)
     return {
         'stock_meta': stock_metadata,
@@ -100,20 +99,20 @@ def fetch_new_announcements_from_bse(stock_code):
     return unprocessed_announcements
 
 
-def send_notification_for_announcements(stock_code: str, unprocessed_announcements: list):
-    today = datetime.now()
-    file_path = "bse_notifications/{}-{}-{}-{}T{}:{}:{}.json".format(stock_code,
+def send_notification_for_announcements(security_name: str, unprocessed_announcements: list):
+    file_path = "bse_notifications/{}-{}-{}-{}T{}:{}:{}.json".format(security_name,
                                                                 today.year, today.month, today.day,
                                                                 today.hour, today.minute, today.second)
     with open(file_path, 'w') as handle:
         json.dump(unprocessed_announcements, handle, indent=1)
-    send_mail(mail_username, mail_password, "Notification for {}".format(stock_code),
+    send_mail(mail_username, mail_password, "Notification for {}".format(security_name),
               "PFA",
-              ["tanmayiitj@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], [file_path])
+              ["sethitanmay.work@gmail.com", "prateektagde@gmail.com", "karmav44990@gmail.com"], [file_path])
 
 
 if __name__ == '__main__':
     # process_new_bse_updates_for_stocks_having_result_for_today()
     while True:
+        today = datetime.now()
         run_in_background(process_new_bse_updates_for_stocks_having_result_for_today)
         sleep(10)
