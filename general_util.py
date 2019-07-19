@@ -178,7 +178,7 @@ def json_file_to_csv(json_path, csv_path):
     json_arr_to_csv(json_array, csv_path)
 
 
-def json_arr_to_csv(json_array, csv_path):
+def json_arr_to_csv(json_array, csv_path, seperator=","):
     # making exhaustive list of column names
     column_names = set()
     for j_element in json_array:
@@ -188,10 +188,10 @@ def json_arr_to_csv(json_array, csv_path):
     column_names = list(column_names)
 
     f = open(csv_path, 'w')
-    f.write("^".join(column_names) + "\n")
+    f.write(seperator.join(column_names) + "\n")
     for j_element in json_array:
         vals = [str(j_element.get(key, "null")) for key in column_names]
-        line = "^".join(vals) + "\n"
+        line = seperator.join(vals) + "\n"
         f.write(line)
     f.flush()
     f.close()

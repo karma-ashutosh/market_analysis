@@ -7,6 +7,7 @@ import yaml
 
 from general_util import run_in_background, setup_logger, send_mail
 from postgres_io import PostgresIO
+from bse_util import BseUtil
 
 logger = setup_logger("bse_logger", "./logs/log_bse_processing.log")
 
@@ -20,9 +21,8 @@ bse_notification_checkpointing_table = config['bse_send_result_notification']['c
 mail_username = config['email-config']['username']
 mail_password = config['email-config']['password']
 
-def should_process_result(result):
-    result_date = datetime.strptime(result['result_date'], '%d %B %Y')
-    return result_date.year == today.year and result_date.month == today.month and result_date.day == today.day
+
+bse = BseUtil(config, postgres)
 
 
 def get_already_processed_news_ids(stock_code) -> list:
@@ -58,7 +58,7 @@ def get_todays_annoucement_for_stock(stock_code) -> list:
     return []
 
 def process_new_bse_updates_for_stocks_having_result_for_today():
-    results_to_be_processed = get_stock_list_with_result_for_today()
+    results_to_be_processed = bse.get_results_announced_for_today()
     logger.info("results to be processed: {}".format(results_to_be_processed))
     processing_response = []
     for result in results_to_be_processed:
@@ -67,13 +67,6 @@ def process_new_bse_updates_for_stocks_having_result_for_today():
         except Exception as e:
             logger.error(e)
     logger.info("Processing successful. Processed metadata is as:\t{}".format(json.dumps(processing_response)))
-
-
-def get_stock_list_with_result_for_today():
-    upcoming_results_query = "SELECT * FROM {}".format(upcoming_results_date_table)
-    result_list = postgres.execute([upcoming_results_query], fetch_result=True)['result']
-    results_to_be_processed = list(filter(should_process_result, result_list))
-    return results_to_be_processed
 
 
 def send_notification_if_new_bse_update_available(stock_metadata) -> dict:

@@ -78,7 +78,6 @@ class PostgresIO(object):
             values = ",".join(map(lambda s: "'" + str(s).replace("'", "''") + "'", [j_elem.get(key) for key in keys]))
             statement = query.format(table_name, ", ".join(list(quoted_keys)), values)
             query_list.append(statement)
-        print(query_list)
         return self.execute(query_list, fetch_result=False)
 
     def insert_or_skip_on_conflict(self, json_array: list, table_name: str, primary_key_columns: list):
