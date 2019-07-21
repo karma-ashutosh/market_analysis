@@ -1,4 +1,3 @@
-
 import json
 from datetime import datetime
 import yaml
@@ -30,7 +29,12 @@ if __name__ == '__main__':
 
     session_info = k_util.get_current_session_info()['result'][0]
     kws = KiteTicker(session_info['api_key'], session_info['access_token'])
-    instruments = get_instruments_to_fetch()
+    # instruments = get_instruments_to_fetch()
+    instruments = [138127364, 136354052, 137872900, 136313604, 2753281, 137910532, 130866180, 149249, 136178180,
+                   129637124, 189185, 135895812, 4741121, 130834436, 215553, 135975684, 128168964, 295169, 134848260,
+                   136503556, 4918017, 138541828, 637185, 138041604, 137125892, 7670273, 128062724, 128063236, 492033,
+                   128064516, 506625, 134068228, 543745, 135722756, 138034948, 128080644, 636673, 132485636, 137957636,
+                   131482884, 3821313, 136417028, 136279812, 2170625, 136302596, 129385476, 1084161]
 
 
     def on_ticks(ws, ticks):
