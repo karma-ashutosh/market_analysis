@@ -1,3 +1,5 @@
+import json
+
 import yaml
 from kiteconnect import KiteTicker
 from kite_util import KiteUtil
@@ -26,12 +28,12 @@ if __name__ == '__main__':
     k_util = KiteUtil(postgres, config)
 
     session_info = k_util.get_current_session_info()['result'][0]
-    kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+    kws = KiteTicker(session_info['api_key'], 'AIBcdAn2MroabjPq87kMxro0CzW36zL3')
 
 
     def on_ticks(ws, ticks):
         # Callback to receive ticks.
-        stock_logger.info("{}".format(ticks))
+        stock_logger.info("{}".format(json.dumps(ticks)))
 
 
     def on_connect(ws, response):
