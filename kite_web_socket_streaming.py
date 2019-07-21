@@ -28,7 +28,7 @@ if __name__ == '__main__':
     k_util = KiteUtil(postgres, config)
 
     session_info = k_util.get_current_session_info()['result'][0]
-    kws = KiteTicker(session_info['api_key'], 'AIBcdAn2MroabjPq87kMxro0CzW36zL3')
+    kws = KiteTicker(session_info['api_key'], session_info['access_token'])
 
 
     def on_ticks(ws, ticks):
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         ws.subscribe(instruments)
 
         # Set RELIANCE to tick in `full` mode.
-        ws.set_mode(ws.MODE_FULL, [738561])
+        ws.set_mode(ws.MODE_FULL, instruments)
 
 
     def on_close(ws, code, reason):
