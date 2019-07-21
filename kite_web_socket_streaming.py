@@ -1,5 +1,6 @@
-import json
 
+import json
+from datetime import datetime
 import yaml
 from kiteconnect import KiteTicker
 from kite_util import KiteUtil
@@ -29,17 +30,22 @@ if __name__ == '__main__':
 
     session_info = k_util.get_current_session_info()['result'][0]
     kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+    instruments = get_instruments_to_fetch()
 
 
     def on_ticks(ws, ticks):
         # Callback to receive ticks.
+        for tick in ticks:
+            for key in tick.keys():
+                if isinstance(tick[key], datetime):
+                    tick[key] = str(tick[key])
+
         stock_logger.info("{}".format(json.dumps(ticks)))
 
 
     def on_connect(ws, response):
         # Callback on successful connect.
         # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
-        instruments = get_instruments_to_fetch()
 
         ws.subscribe(instruments)
 
