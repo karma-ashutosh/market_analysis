@@ -27,14 +27,18 @@ class KiteUtil:
         query = ["SELECT * FROM {} WHERE exchange='BSE' and segment = 'BSE' and exchange_token in {}"
                      .format(self.__instrument_mapping_table, bse_code_input)]
         result = self.__postgres.execute(query, fetch_result=True)['result']
-        trading_symbols = list(map(lambda e: e['tradingsymbol'], result))
-        q_bse_by_trading_symbols = ["SELECT * FROM {} WHERE exchange='NSE' and segment = 'NSE' and tradingsymbol in {}"
-                                    "".format(self.__instrument_mapping_table, "('" + "','".join(trading_symbols) + "')")]
-        result.extend(self.__postgres.execute(q_bse_by_trading_symbols, fetch_result=True)['result'])
+        # result.extend(self.get_nse_counterpart_instrument_results(result))
         mapping = {}
         for entry in result:
             mapping[entry['exchange_token']] = entry['instrument_token']
         return mapping
+
+    def get_nse_counterpart_instrument_results(self, result) -> list:
+        trading_symbols = list(map(lambda e: e['tradingsymbol'], result))
+        q_bse_by_trading_symbols = ["SELECT * FROM {} WHERE exchange='NSE' and segment = 'NSE' and tradingsymbol in {}"
+                                    "".format(self.__instrument_mapping_table,
+                                              "('" + "','".join(trading_symbols) + "')")]
+        return self.__postgres.execute(q_bse_by_trading_symbols, fetch_result=True)['result']
 
     def get_current_session_info(self):
         query = ['SELECT * FROM {}'.format(self.__session_info_table)]
