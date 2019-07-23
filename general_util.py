@@ -8,6 +8,7 @@ import smtplib
 import subprocess
 import threading
 from calendar import timegm
+from collections import OrderedDict
 from datetime import datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -182,10 +183,9 @@ def json_arr_to_csv(json_array, csv_path, seperator=","):
     # making exhaustive list of column names
     column_names = set()
     for j_element in json_array:
-        j_element.pop('description', 'none')
         for key in j_element:
             column_names.add(key)
-    column_names = list(column_names)
+    column_names = list(sorted(column_names))
 
     f = open(csv_path, 'w')
     f.write(seperator.join(column_names) + "\n")
@@ -315,7 +315,6 @@ def group_dict_array_by_key(func, j_arr):
             result[key] = [j_elem]
     print("data grouping completed")
     return result
-
 
 class EventThrottler(object):
     """
