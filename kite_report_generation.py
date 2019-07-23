@@ -40,6 +40,7 @@ def map_to_csv_line(j_element, separator=","):
 
 
 if __name__ == '__main__':
+    report_folder="/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/2019-07-24"
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
     conf = SparkConf().setAppName("kite reporting").setMaster('local')
@@ -50,4 +51,9 @@ if __name__ == '__main__':
         .flatMap(json.loads)\
         .map(flatten)
 
-    rdd.toDF().toPandas().to_csv("/tmp/result1.csv")
+    df = rdd.toDF()
+    df.cache()
+
+    instruments = [i.instrument_token for i in df.select('instrument_token').distinct().collect()]
+    for instrument in instruments:
+        df.filter("instrument_token={}".format(instrument)).toPandas().to_csv("{}/{}.csv".format(report_folder, instrument))
