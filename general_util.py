@@ -351,3 +351,6 @@ class EventThrottler(object):
                          .format(calculated_window_serial_number, self.window_serial_number))
             self.window_serial_number = calculated_window_serial_number
             self.current_window_event_count = 0
+
+class Constants:
+    strp_time_format1 = '%Y-%m-%d %H:%M:%S.%f'

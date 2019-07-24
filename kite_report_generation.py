@@ -2,6 +2,8 @@ import json
 import os
 
 from collections import OrderedDict
+from datetime import datetime
+
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
 
@@ -38,20 +40,26 @@ def map_to_csv_line(j_element, separator=","):
     line = separator.join(vals) + "\n"
     return line
 
+def strip_time(j_elem):
+    dt = datetime.strptime(j_elem['timestamp'], '%Y-%m-%d %H:%M:%S')
+    j_elem['hour'] = dt.hour
+    return j_elem
+
 
 if __name__ == '__main__':
-    report_folder="/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/2019-07-24"
+    report_folder="/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/2019-07-23"
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
-    conf = SparkConf().setAppName("kite reporting").setMaster('local')
+    conf = SparkConf().setAppName("kite reporting").setMaster('local[*]')
     sc = SparkContext(conf=conf)
     spark = SparkSession(sc)
     rdd = sc\
-        .textFile("/Users/ashutosh.v/Development/bse_data_processing/kite_stream/stock.log.2019-07-22_08")\
+        .textFile("/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/2019-07-23/*")\
+        .repartition(8)\
         .flatMap(json.loads)\
-        .map(flatten)
+        .map(flatten).map(strip_time)
 
-    df = rdd.toDF()
+    df = rdd.toDF().filter("hour > 8").filter("hour < 16").drop('hour')
     df.cache()
 
     instruments = [i.instrument_token for i in df.select('instrument_token').distinct().collect()]
