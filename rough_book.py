@@ -90,6 +90,12 @@ def jtl_to_influx(source_file, destination_file, machine_ip, thread_count, loop_
     f.close()
 
 
+lines = sc.textFile("/Users/ashutosh.v/Development/tumbler_logs/*").filter(lambda line: "java.sql.SQLIntegrityConstraintViolationException" in line)
+p_lines = lines.collect()
+
+drop_err_msg = "Not able to executeUpdate vertica query , even after retries SELECT DROP_PARTITION"
+d_lines = sc.textFile("/Users/ashutosh.v/Development/tumbler_logs/*").filter(lambda line: drop_err_msg in line).collect()
+
 if __name__ == '__main__':
     # j_arr = file_to_dict_list("/Users/ashutosh.v/Downloads/stock_price_may_11.csv")
     j_arr = file_to_dict_list("/tmp/sample.csv")
