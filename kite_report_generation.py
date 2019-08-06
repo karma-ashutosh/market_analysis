@@ -91,19 +91,22 @@ influx_file_header = """# DDL
 CREATE DATABASE share_market_data
 
 # DML
-# CONTEXT-DATABASE: web_app_nfr
+# CONTEXT-DATABASE: share_market_data
 
 """
 
 if __name__ == '__main__':
+    source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/2019-07-23"
     report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/2019-07-23"
+    influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx"
+
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
     conf = SparkConf().setAppName("kite reporting").setMaster('local[*]')
     sc = SparkContext(conf=conf)
     spark = SparkSession(sc)
     rdd = sc \
-        .textFile("/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/2019-07-23/*") \
+        .textFile("{}/*".format(source_folder)) \
         .repartition(8) \
         .flatMap(json.loads) \
         .map(flatten).map(strip_time)
@@ -111,7 +114,7 @@ if __name__ == '__main__':
     rdd.cache()
     influx_lines = rdd.map(to_influx_line).collect()
 
-    f = open("{}/influx_lines.influx".format(report_folder), 'w')
+    f = open("{}/influx_lines.influx".format(influx_folder), 'w')
     f.write(influx_file_header)
     for line in influx_lines:
         f.write(line+"\n")
