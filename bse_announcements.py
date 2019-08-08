@@ -139,6 +139,9 @@ def send_notification_for_announcements(security_name: str, unprocessed_announce
 if __name__ == '__main__':
     # process_new_bse_updates_for_stocks_having_result_for_today()
     while True:
-        today = datetime.now()
-        run_in_background(process_new_bse_updates_for_stocks_having_result_for_today)
-        sleep(10)
+        try:
+            today = datetime.now()
+            run_in_background(process_new_bse_updates_for_stocks_having_result_for_today)
+            sleep(10)
+        except:
+            logger.exception("Exception while executing process_new_bse_updates_for_stocks_having_result_for_today: gi")

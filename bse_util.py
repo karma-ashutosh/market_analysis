@@ -13,5 +13,5 @@ class BseUtil:
         today_date = '{}-{}-{}'.format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
         upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'"\
             .format(self.__upcoming_results_date_table, today_date)
-        result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True)['result']
+        result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
         return result_list
