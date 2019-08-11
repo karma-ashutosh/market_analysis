@@ -1,5 +1,7 @@
 import psycopg2
 import traceback
+
+import yaml
 from psycopg2 import extras
 
 
@@ -93,5 +95,4 @@ class PostgresIO(object):
                                      ", ".join(quoted_primary_key_columns))
             query_list.append(statement)
         return self.execute(query_list, fetch_result=False)
-
 

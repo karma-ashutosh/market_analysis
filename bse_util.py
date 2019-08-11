@@ -1,4 +1,7 @@
-from datetime import datetime, timedelta
+import json
+import requests
+
+from datetime import datetime
 from postgres_io import PostgresIO
 
 
@@ -15,3 +18,15 @@ class BseUtil:
             .format(self.__upcoming_results_date_table, today_date)
         result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
         return result_list
+
+
+def get_announcement_for_stock_for_date_range(stock_code, from_date, to_date) -> list:
+    announcement_url_format = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate={" \
+                              "}&strScrip={}&strSearch=P&strToDate={}&strType=C "
+    url = announcement_url_format.format(from_date, stock_code, to_date)
+    r = requests.get(url)
+    json_res = json.loads(r.text)
+    result = []
+    if json_res.get('Table'):
+        result = json_res.get('Table')
+    return result
