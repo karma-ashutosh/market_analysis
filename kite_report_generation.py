@@ -96,8 +96,13 @@ def get_unique_nano_from_millis(millis):
     return new_nano
 
 
-def to_influx_line(j_elem):
+def to_influx_line(j_elem, additional_tags: dict=None):
     tag_list = ["{}={}".format(name, j_elem.get(name)) for name in tags]
+
+    if additional_tags:
+        for key, value in additional_tags.items():
+            tag_list.append("{}={}".format(key, value))
+
     field_list = ["{}={}".format(name, j_elem.get(name)) for name in fields]
     return "kite_web_socket_data,{} {} {}".format(",".join(tag_list), ",".join(field_list),
                                                   "%.0f" % get_unique_nano_from_millis(j_elem.get('millis')))
@@ -162,16 +167,16 @@ def write_all_influx_lines_grouped_by_minutes(processed_rdd: RDD):
         .reduceByKey(add_grouped_values_and_count)\
         .map(lambda tup: tup[1])\
         .map(convert_summation_to_average)
-    save_to_influx_file(reduced_rdd, "{}/influx_lines_minute_grouping.influx".format(influx_folder))
+    save_to_influx_file(reduced_rdd, "{}/influx_lines_minute_grouping.influx".format(influx_folder), 'avg_over_minute')
 
 
 def write_all_influx_lines_for_result_hour(processed_rdd: RDD):
     filtered_rdd = processed_rdd.filter(is_measurement_in_announcement_time_hour)
-    save_to_influx_file(filtered_rdd, "{}/influx_lines_result_hour.influx".format(influx_folder))
+    save_to_influx_file(filtered_rdd, "{}/influx_lines_result_hour.influx".format(influx_folder), 'per_tick')
 
 
-def save_to_influx_file(filtered_rdd, file_name):
-    influx_lines = filtered_rdd.map(to_influx_line).collect()
+def save_to_influx_file(filtered_rdd, file_name, measurement_type):
+    influx_lines = filtered_rdd.map(lambda j: to_influx_line(j, {'measurement_type': measurement_type})).collect()
     create_dir_if_not_exists(file_name)
     f = open(file_name, 'w')
     f.write(influx_file_header)
@@ -182,9 +187,9 @@ def save_to_influx_file(filtered_rdd, file_name):
 
 
 if __name__ == '__main__':
-    source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/test"
+    source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/2019-08-07"
     report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/test"
-    influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/test"
+    influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/2019-08-07"
 
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
