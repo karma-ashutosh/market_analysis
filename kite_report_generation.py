@@ -5,7 +5,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 import yaml
-from pyspark import SparkContext, SparkConf
+from pyspark import SparkContext, SparkConf, RDD
 from pyspark.sql import SparkSession
 
 from kite_util import KiteUtil
@@ -61,12 +61,27 @@ def map_to_csv_line(j_element, separator=","):
     return line
 
 
-def strip_time(j_elem):
+def strip_time(j_elem: dict):
     dt = datetime.strptime(j_elem['timestamp'], '%Y-%m-%d %H:%M:%S')
     j_elem['hour'] = dt.hour
+    j_elem['minute'] = dt.minute
     j_elem['date'] = "-".join([str(dt.year).zfill(4), str(dt.month).zfill(2), str(dt.day).zfill(2)])
     j_elem['millis'] = dt.timestamp() * 1000
     return j_elem
+
+
+def add_grouping_key_and_default_doc_count(j_elem: dict):
+    j_elem['stock_minute_grouping_key'] = "{}_{}_{}_{}".format(j_elem.get('instrument_token'),
+                                                            j_elem['date'], j_elem['hour'], j_elem['minute'])
+
+    set_millis_to_minute_start_time(j_elem)
+
+    j_elem['count'] = 1
+    return j_elem
+
+
+def set_millis_to_minute_start_time(j_elem):
+    j_elem['millis'] = j_elem['millis'] - j_elem['millis'] % 60000
 
 
 nano_count_dict = {}
@@ -102,13 +117,69 @@ def add_trading_symbol(j_elem: dict, instrument_to_symbol_mapping: dict):
     return j_elem
 
 
+def is_measurement_in_announcement_time_hour(j_elem: dict) -> bool:
+    return True
+
+
 influx_file_header = """# DDL
-CREATE DATABASE share_market_data
+CREATE DATABASE kite_web_socket_data
 
 # DML
-# CONTEXT-DATABASE: share_market_data
+# CONTEXT-DATABASE: kite_web_socket_data
 
 """
+
+
+def add_grouped_values_and_count(j_elem_1:  dict, j_elem_2: dict):
+    result = {}
+    for key in fields:
+        result[key] = j_elem_1[key] + j_elem_2[key]
+
+    for key in tags:
+        result[key] = j_elem_1[key]
+
+    result['millis'] = j_elem_1['millis']
+    result['count'] = j_elem_1['count'] + j_elem_2['count']
+    return result
+
+
+def convert_summation_to_average(j_elem):
+    result = {}
+    for key in fields:
+        result[key] = (1.0 * j_elem[key]) / j_elem['count']
+
+    for key in tags:
+        result[key] = j_elem[key]
+
+    result['millis'] = j_elem['millis']
+    return result
+
+
+def write_all_influx_lines_grouped_by_minutes(processed_rdd: RDD):
+    reduced_rdd = processed_rdd\
+        .map(add_grouping_key_and_default_doc_count)\
+        .map(lambda j_elem: (j_elem['stock_minute_grouping_key'], j_elem))\
+        .reduceByKey(add_grouped_values_and_count)\
+        .map(lambda tup: tup[1])\
+        .map(convert_summation_to_average)
+    save_to_influx_file(reduced_rdd, "{}/influx_lines_minute_grouping.influx".format(influx_folder))
+
+
+def write_all_influx_lines_for_result_hour(processed_rdd: RDD):
+    filtered_rdd = processed_rdd.filter(is_measurement_in_announcement_time_hour)
+    save_to_influx_file(filtered_rdd, "{}/influx_lines_result_hour.influx".format(influx_folder))
+
+
+def save_to_influx_file(filtered_rdd, file_name):
+    influx_lines = filtered_rdd.map(to_influx_line).collect()
+    create_dir_if_not_exists(file_name)
+    f = open(file_name, 'w')
+    f.write(influx_file_header)
+    for line in influx_lines:
+        f.write(line + "\n")
+    f.flush()
+    f.close()
+
 
 if __name__ == '__main__':
     source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/test"
@@ -133,16 +204,10 @@ if __name__ == '__main__':
 
     rdd.cache()
 
-    influx_lines = rdd.map(to_influx_line).collect()
+    # write_all_influx_lines_for_result_hour(rdd)
+    write_all_influx_lines_grouped_by_minutes(rdd)
 
-    file_name = "{}/influx_lines.influx".format(influx_folder)
-    create_dir_if_not_exists(file_name)
-    f = open(file_name, 'w')
-    f.write(influx_file_header)
-    for line in influx_lines:
-        f.write(line+"\n")
-    f.flush()
-    f.close()
+
 
     # df = rdd.toDF().filter("hour > 8").filter("hour < 16").drop('hour')
     # df.cache()
