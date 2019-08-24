@@ -33,6 +33,14 @@ class KiteUtil:
             mapping[entry['exchange_token']] = entry['instrument_token']
         return mapping
 
+    def map_instrument_ids_to_trading_symbol(self) -> dict:
+        query = ["SELECT * FROM {}".format(self.__instrument_mapping_table)]
+        result = self.__postgres.execute(query, fetch_result=True)['result']
+        mapping = {}
+        for entry in result:
+            mapping[entry['instrument_token']] = entry['tradingsymbol']
+        return mapping
+
     def get_nse_counterpart_instrument_results(self, result) -> list:
         trading_symbols = list(map(lambda e: e['tradingsymbol'], result))
         q_bse_by_trading_symbols = ["SELECT * FROM {} WHERE exchange='NSE' and segment = 'NSE' and tradingsymbol in {}"
@@ -51,5 +59,5 @@ if __name__ == '__main__':
     postgres = PostgresIO(config['postgres-config'])
     postgres.connect()
     k = KiteUtil(postgres, config)
-    k.update_token()
+    k.map_instrument_ids_to_trading_symbol()
 

@@ -4,8 +4,16 @@ import os
 from collections import OrderedDict
 from datetime import datetime
 
+import yaml
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
+
+from kite_util import KiteUtil
+from postgres_io import PostgresIO
+
+
+def create_dir_if_not_exists(file_name):
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
 
 
 def flatten(j_elem):
@@ -37,21 +45,14 @@ column_names = ['average_price', 'buy_quantity', 'change', 'depth_buy_orders_0',
                 'ohlc_close', 'ohlc_high', 'ohlc_low', 'ohlc_open', 'oi', 'oi_day_high', 'oi_day_low', 'sell_quantity',
                 'timestamp', 'tradable', 'volume']
 
-tags = ['instrument_token', 'date']
-fields = ['depth_buy_orders_0', 'depth_buy_orders_1', 'depth_buy_orders_2', 'depth_buy_orders_3', 'depth_buy_orders_4',
-
-          'depth_buy_price_0', 'depth_buy_price_1', 'depth_buy_price_2', 'depth_buy_price_3', 'depth_buy_price_4',
-
-          'depth_buy_quantity_0', 'depth_buy_quantity_1', 'depth_buy_quantity_2', 'depth_buy_quantity_3',
+tags = ['trading_symbol', 'date']
+fields = ['depth_buy_quantity_0', 'depth_buy_quantity_1', 'depth_buy_quantity_2', 'depth_buy_quantity_3',
           'depth_buy_quantity_4',
 
-          'depth_sell_orders_0', 'depth_sell_orders_1', 'depth_sell_orders_2', 'depth_sell_orders_3',
-          'depth_sell_orders_4',
-
-          'depth_sell_price_0', 'depth_sell_price_1', 'depth_sell_price_2', 'depth_sell_price_3', 'depth_sell_price_4',
-
           'depth_sell_quantity_0', 'depth_sell_quantity_1', 'depth_sell_quantity_2', 'depth_sell_quantity_3',
-          'depth_sell_quantity_4', 'volume']
+          'depth_sell_quantity_4',
+
+          'volume', 'last_price']
 
 
 def map_to_csv_line(j_element, separator=","):
@@ -87,6 +88,20 @@ def to_influx_line(j_elem):
                                                   "%.0f" % get_unique_nano_from_millis(j_elem.get('millis')))
 
 
+def get_instrument_to_trading_symbol_mapping():
+    with open('./config.yml') as handle:
+        config = yaml.load(handle)
+    postgres = PostgresIO(config['postgres-config'])
+    postgres.connect()
+    k = KiteUtil(postgres, config)
+    return k.map_instrument_ids_to_trading_symbol()
+
+
+def add_trading_symbol(j_elem: dict, instrument_to_symbol_mapping: dict):
+    j_elem['trading_symbol'] = instrument_to_symbol_mapping.get(str(j_elem.get('instrument_token')))
+    return j_elem
+
+
 influx_file_header = """# DDL
 CREATE DATABASE share_market_data
 
@@ -96,35 +111,43 @@ CREATE DATABASE share_market_data
 """
 
 if __name__ == '__main__':
-    source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/2019-07-23"
-    report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/2019-07-23"
-    influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx"
+    source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/test"
+    report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/test"
+    influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/test"
 
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
     conf = SparkConf().setAppName("kite reporting").setMaster('local[*]')
     sc = SparkContext(conf=conf)
     spark = SparkSession(sc)
+
+    instrument_to_sym_mapping = get_instrument_to_trading_symbol_mapping()
+
     rdd = sc \
         .textFile("{}/*".format(source_folder)) \
         .repartition(8) \
         .flatMap(json.loads) \
-        .map(flatten).map(strip_time)
+        .map(flatten).map(strip_time)\
+        .filter(lambda j: 8 < j['hour'] < 16)\
+        .map(lambda j: add_trading_symbol(j, instrument_to_sym_mapping))
 
     rdd.cache()
+
     influx_lines = rdd.map(to_influx_line).collect()
 
-    f = open("{}/influx_lines.influx".format(influx_folder), 'w')
+    file_name = "{}/influx_lines.influx".format(influx_folder)
+    create_dir_if_not_exists(file_name)
+    f = open(file_name, 'w')
     f.write(influx_file_header)
     for line in influx_lines:
         f.write(line+"\n")
     f.flush()
     f.close()
 
-    df = rdd.toDF().filter("hour > 8").filter("hour < 16").drop('hour')
-    df.cache()
+    # df = rdd.toDF().filter("hour > 8").filter("hour < 16").drop('hour')
+    # df.cache()
 
-    instruments = [i.instrument_token for i in df.select('instrument_token').distinct().collect()]
-    for instrument in instruments:
-        df.filter("instrument_token={}".format(instrument)).toPandas().to_csv(
-            "{}/{}.csv".format(report_folder, instrument))
+    # instruments = [i.instrument_token for i in df.select('instrument_token').distinct().collect()]
+    # for instrument in instruments:
+    #     df.filter("instrument_token={}".format(instrument)).toPandas().to_csv(
+    #         "{}/{}.csv".format(report_folder, instrument))

@@ -66,7 +66,7 @@ def setup_logger(name, log_file, level=logging.INFO, logging_format=True, msg_on
                  log_rotation_interval=4):
     from logging import handlers
     """Function setup as many loggers as you want"""
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    create_dir_if_not_exists(log_file)
     # handler = logging.FileHandler(log_file)
     handler = handlers.TimedRotatingFileHandler(log_file, when=log_rotation_unit, interval=log_rotation_interval)
     if logging_format:
@@ -80,6 +80,10 @@ def setup_logger(name, log_file, level=logging.INFO, logging_format=True, msg_on
     logger.addHandler(handler)
 
     return logger
+
+
+def create_dir_if_not_exists(file_name):
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
 
 
 def delete_file_silently(file_path):
