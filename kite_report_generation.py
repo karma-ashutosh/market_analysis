@@ -129,6 +129,10 @@ def add_should_log_event_for_partition(j_arr: list) -> None:
         j_elem['should_log_event'] = bse_util.should_process_historical_event(j_elem['trading_symbol'], j_elem['datetime'])
 
 
+def was_event_in_result_announcement_hour(j_elem: dict) -> bool:
+    return get_bse_util().should_process_historical_event(j_elem['trading_symbol'], j_elem['datetime'])
+
+
 influx_file_header = """# DDL
 CREATE DATABASE kite_web_socket_data
 
@@ -174,7 +178,7 @@ def write_all_influx_lines_grouped_by_minutes(processed_rdd: RDD):
 
 
 def write_all_influx_lines_for_result_hour(processed_rdd: RDD):
-    filtered_rdd = processed_rdd.foreachPartition(add_should_log_event_for_partition)
+    filtered_rdd = processed_rdd.filter(was_event_in_result_announcement_hour)
     save_to_influx_file(filtered_rdd, "{}/influx_lines_result_hour.influx".format(influx_folder), 'per_tick')
 
 
