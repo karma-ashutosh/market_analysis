@@ -36,7 +36,9 @@ nse_tools_config:
 bse_send_result_notification:
   checkpointing_table: share_market_data.processed_bse_news
   upcoming_result_table: nsetools.result_dates
+  historical_result_time_info_file: text_files/historical_bse_result_times.csv
 
 kite_config:
   instrument_mapping_table: kite.instrument_tokens
   session_info_table: kite.authentication_details
+

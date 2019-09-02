@@ -1,6 +1,5 @@
 import json
 import os
-
 from collections import OrderedDict
 from datetime import datetime
 
@@ -8,7 +7,8 @@ import yaml
 from pyspark import SparkContext, SparkConf, RDD
 from pyspark.sql import SparkSession
 
-from kite_util import KiteUtil
+from bse_util import BseUtil
+from connection_factory import get_bse_util, get_kite_util
 from postgres_io import PostgresIO
 
 
@@ -63,6 +63,7 @@ def map_to_csv_line(j_element, separator=","):
 
 def strip_time(j_elem: dict):
     dt = datetime.strptime(j_elem['timestamp'], '%Y-%m-%d %H:%M:%S')
+    j_elem['datetime'] = dt
     j_elem['hour'] = dt.hour
     j_elem['minute'] = dt.minute
     j_elem['date'] = "-".join([str(dt.year).zfill(4), str(dt.month).zfill(2), str(dt.day).zfill(2)])
@@ -109,12 +110,7 @@ def to_influx_line(j_elem, additional_tags: dict=None):
 
 
 def get_instrument_to_trading_symbol_mapping():
-    with open('./config.yml') as handle:
-        config = yaml.load(handle)
-    postgres = PostgresIO(config['postgres-config'])
-    postgres.connect()
-    k = KiteUtil(postgres, config)
-    return k.map_instrument_ids_to_trading_symbol()
+    return get_kite_util().map_instrument_ids_to_trading_symbol()
 
 
 def add_trading_symbol(j_elem: dict, instrument_to_symbol_mapping: dict):
@@ -122,8 +118,15 @@ def add_trading_symbol(j_elem: dict, instrument_to_symbol_mapping: dict):
     return j_elem
 
 
-def is_measurement_in_announcement_time_hour(j_elem: dict) -> bool:
-    return True
+def add_should_log_event_for_partition(j_arr: list) -> None:
+    with open('./config.yml') as handle:
+        config = yaml.load(handle)
+    postgres = PostgresIO(config['postgres-config'])
+    postgres.connect()
+    bse_util = BseUtil(config, postgres)
+
+    for j_elem in j_arr:
+        j_elem['should_log_event'] = bse_util.should_process_historical_event(j_elem['trading_symbol'], j_elem['datetime'])
 
 
 influx_file_header = """# DDL
@@ -171,7 +174,7 @@ def write_all_influx_lines_grouped_by_minutes(processed_rdd: RDD):
 
 
 def write_all_influx_lines_for_result_hour(processed_rdd: RDD):
-    filtered_rdd = processed_rdd.filter(is_measurement_in_announcement_time_hour)
+    filtered_rdd = processed_rdd.foreachPartition(add_should_log_event_for_partition)
     save_to_influx_file(filtered_rdd, "{}/influx_lines_result_hour.influx".format(influx_folder), 'per_tick')
 
 
@@ -187,9 +190,15 @@ def save_to_influx_file(filtered_rdd, file_name, measurement_type):
 
 
 if __name__ == '__main__':
-    source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/2019-08-07"
-    report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/test"
-    influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/2019-08-07"
+    # source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/test"
+    # report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/test"
+    # influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/test"
+    source_folder = "/home/ubuntu/kite_websocket_data"
+    influx_folder = "/home/ubuntu/kite_influx_files"
+
+    with open('./config.yml') as handle:
+        config = yaml.load(handle)
+
 
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
@@ -209,8 +218,8 @@ if __name__ == '__main__':
 
     rdd.cache()
 
-    # write_all_influx_lines_for_result_hour(rdd)
-    write_all_influx_lines_grouped_by_minutes(rdd)
+    write_all_influx_lines_for_result_hour(rdd)
+    # write_all_influx_lines_grouped_by_minutes(rdd)
 
 
 
