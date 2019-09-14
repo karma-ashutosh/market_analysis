@@ -93,18 +93,22 @@ class HistoricalStockPriceParser:
         result = [dict(zip(column_names, row_values)) for row_values in data_rows]
         return result
 
+    @staticmethod
+    def run():
+        symbols_to_process = [line.strip() for line in
+                              open('text_files/temporary_stock_symbols_to_process.txt').readlines()]
+
+        parser = HistoricalStockPriceParser()
+        symbol_to_bse_script_id_mapping = parser.get_trading_sym_to_exchange_script_id_mapping()
+        script_ids_to_process = list(map(lambda sym: symbol_to_bse_script_id_mapping.get(sym), symbols_to_process))
+        failed_indexes = list(
+            filter(lambda index: script_ids_to_process[index] is None, range(len(script_ids_to_process))))
+        for index in range(len(script_ids_to_process)):
+            if index not in failed_indexes:
+                result_arr = parser.parse(script_ids_to_process[index])
+                with open("crawed_data_output/{}.json".format(symbols_to_process[index]), 'w') as handle:
+                    json.dump(result_arr, handle, indent=2)
+
 
 if __name__ == '__main__':
-    symbols_to_process = [line.strip() for line in
-                          open('text_files/temporary_stock_symbols_to_process.txt').readlines()]
-
-    parser = HistoricalStockPriceParser()
-    symbol_to_bse_script_id_mapping = parser.get_trading_sym_to_exchange_script_id_mapping()
-    script_ids_to_process = list(map(lambda sym: symbol_to_bse_script_id_mapping.get(sym), symbols_to_process))
-    failed_indexes = list(filter(lambda index: script_ids_to_process[index] is None, range(len(script_ids_to_process))))
-    for index in range(len(script_ids_to_process)):
-        if index not in failed_indexes:
-            result_arr = parser.parse(script_ids_to_process[index])
-            with open("crawed_data_output/{}.json".format(symbols_to_process[index]), 'w') as handle:
-                json.dump(result_arr, handle, indent=2)
-
+    HistoricalStockPriceParser().run()
