@@ -6,7 +6,7 @@ import urllib3
 import yaml
 from bs4 import BeautifulSoup
 from dateparser import parse
-from general_util import csv_file_with_headers_to_dict_list
+from general_util import csv_file_with_headers_to_json_arr
 # todo https://urllib3.readthedocs.io/en/latest/user-guide.html#ssl
 from postgres_io import PostgresIO
 
@@ -73,7 +73,7 @@ class HistoricalStockPriceParser:
 
     @staticmethod
     def get_trading_sym_to_exchange_script_id_mapping():
-        instrument_mappings = csv_file_with_headers_to_dict_list("text_files/instruments.csv")
+        instrument_mappings = csv_file_with_headers_to_json_arr("text_files/instruments.csv")
         symbol_to_bse_script_id_mapping = {}
         for j_elem in instrument_mappings:
             if j_elem['exchange'] == 'BSE':

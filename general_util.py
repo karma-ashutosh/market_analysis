@@ -280,7 +280,7 @@ def read_and_clean_lines(file_path) -> iter:
     return map(lambda line: line.strip().replace('"', '').split(","), open(file_path).readlines())
 
 
-def csv_file_with_headers_to_dict_list(file_path) -> list:
+def csv_file_with_headers_to_json_arr(file_path) -> list:
     print("loading data from file: {}".format(file_path))
     lines = list(read_and_clean_lines(file_path))
     header = lines[0]

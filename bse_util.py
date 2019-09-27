@@ -3,7 +3,7 @@ import requests
 
 from datetime import datetime, timedelta
 from postgres_io import PostgresIO
-from general_util import csv_file_with_headers_to_dict_list
+from general_util import csv_file_with_headers_to_json_arr
 
 
 class BseUtil:
@@ -15,7 +15,7 @@ class BseUtil:
 
     def __prepare_significant_stock_time_ranges(self) -> dict:
         historical_result_file = self.__config['bse_send_result_notification']['historical_result_time_info_file']
-        j_arr = csv_file_with_headers_to_dict_list(historical_result_file)
+        j_arr = csv_file_with_headers_to_json_arr(historical_result_file)
         result = {}
         for j_elem in j_arr:
             dt = datetime.strptime(j_elem.get('date_time'), '%Y-%m-%d %H:%M:%S')

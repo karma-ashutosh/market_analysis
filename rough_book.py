@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
-from general_util import get_all_values_for_key, file_to_dict_list, group_dict_array_by_key
+from general_util import get_all_values_for_key, csv_file_with_headers_to_json_arr, group_dict_array_by_key
 
 
 def filter_stock_for_code(stock_arr, stock_code):
@@ -81,7 +81,7 @@ CREATE DATABASE web_app_nfr
 
 
 def jtl_to_influx(source_file, destination_file, machine_ip, thread_count, loop_count):
-    j_arr = file_to_dict_list(source_file)
+    j_arr = csv_file_with_headers_to_json_arr(source_file)
     influx_lines = list(map(lambda j_elem: get_influx_line(j_elem, machine_ip, thread_count, loop_count), j_arr))
     f = open(destination_file, 'w')
     f.write(influx_file_header)
@@ -98,7 +98,7 @@ d_lines = sc.textFile("/Users/ashutosh.v/Development/tumbler_logs/*").filter(lam
 
 if __name__ == '__main__':
     # j_arr = file_to_dict_list("/Users/ashutosh.v/Downloads/stock_price_may_11.csv")
-    j_arr = file_to_dict_list("/tmp/sample.csv")
+    j_arr = csv_file_with_headers_to_json_arr("/tmp/sample.csv")
     print("group")
     grouped_stocks = group_dict_array_by_key(lambda j_elem: j_elem['stock_code'], j_arr)
     plt.ion()

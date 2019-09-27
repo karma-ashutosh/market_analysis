@@ -197,8 +197,8 @@ if __name__ == '__main__':
     # source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/test"
     # report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/test"
     # influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/test"
-    source_folder = "/home/ubuntu/kite_websocket_data"
-    influx_folder = "/home/ubuntu/kite_influx_files"
+    source_folder = "/home/ubuntu/kite_websocket_data/test"
+    influx_folder = "/home/ubuntu/kite_influx_files/test"
 
     with open('./config.yml') as handle:
         config = yaml.load(handle)
