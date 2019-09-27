@@ -43,9 +43,7 @@ class MarketChangeDetector:
                 self._event_window_60_min.move(market_event)
                 avg_15_sec = self._event_window_15_sec.get_avg(key='buy_quantity')
                 avg_10_min = self._event_window_10_min.get_avg(key='buy_quantity')
-                if int(market_event.get('')) >= 1674:
-                    x = 2
-                    print("15 sec avg: {} and 10 min avg: {}".format(avg_15_sec, avg_10_min))
+
                 if avg_15_sec > avg_10_min:
                     print("There is a rise in the share at market_event: {}".format(market_event))
                     print("15 sec avg: {} and 10 min avg: {}".format(avg_15_sec, avg_10_min))
@@ -73,14 +71,11 @@ class EventWindow:
             self._events.put_nowait(d)
 
     def move(self, json_event: dict):
-        try:
-            out_of_window_event = self._events.get_nowait()
-            for i in range(len(self.__keys_to_track)):
-                key = self.__keys_to_track[i]
-                self._sum[i] = self._sum[i] - float(out_of_window_event.get(key, 0)) + float(json_event.get(key, 0))
-            self._events.put_nowait(json_event)
-        except:
-            x = 2
+        out_of_window_event = self._events.get_nowait()
+        for i in range(len(self.__keys_to_track)):
+            key = self.__keys_to_track[i]
+            self._sum[i] = self._sum[i] - float(out_of_window_event.get(key, 0)) + float(json_event.get(key, 0))
+        self._events.put_nowait(json_event)
 
     def get_avg(self, key=None):
         if key:
