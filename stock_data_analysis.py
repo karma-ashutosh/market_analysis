@@ -8,6 +8,7 @@ from general_util import csv_file_with_headers_to_json_arr
 BUY_QUANTITY = 'buy_quantity'
 SELL_QUANTITY = "sell_quantity"
 
+
 class MarketEventEmitter:
     def __init__(self, file_name='spicejet.csv'):
         base_path = '/Users/ashutosh.v/Development/market_analysis_data/'
@@ -100,23 +101,32 @@ class PerSecondLatestEventTracker:
 
         self.__events = Queue(maxsize=window_length_in_seconds)
 
+    def get_current_queue_snapshot(self) -> list:
+        return list(self.__events.queue)
+
     def move(self, json_event: dict):
         current_event = self.__get_marshaled_event(json_event)
 
         queue_as_list = self.__events.queue
-        last_element = queue_as_list[-1]
+        if len(queue_as_list) > 0:
+            last_element = queue_as_list[-1]
+            seconds_gap = self.__get_seconds_gap_from_last_received_event(last_element, current_event)
+            print(seconds_gap)
 
-        seconds_gap = self.__get_seconds_gap_from_last_received_event(last_element, current_event)
+            if seconds_gap < 1:
+                self.__overwrite_event(last_element, current_event)
+            else:
+                for i in range(seconds_gap - 1):
+                    self.__put(last_element)
 
-        if seconds_gap < 0:
-            self.__overwrite_event(last_element, current_event)
+            self.__put(current_event)
         else:
-            for i in range(seconds_gap - 1):
-                self.__events.put_nowait(last_element)
-        self.__events.put_nowait(current_event)
+            self.__put(current_event)
 
-    def get_current_queue_snapshot(self) -> list:
-        return list(self.__events.queue)
+    def __put(self, event):
+        if self.__events.qsize() == self.__events.maxsize:
+            self.__events.get_nowait()
+        self.__events.put_nowait(event)
 
     @staticmethod
     def __get_seconds_gap_from_last_received_event(last_element, marshaled_event):
@@ -150,7 +160,14 @@ class PerSecondLatestEventTracker:
         return marshaled_event
 
 
+def main():
+    keys = ['', 'last_price', 'last_quantity', 'volume', 'buy_quantity', 'sell_quantity', 'last_trade_time',
+            'timestamp',
+            'average_price', 'change', 'oi', 'Delta']
+    event_emitter = MarketEventEmitter(file_name='aparinds_sheet.csv')
+    tracker = PerSecondLatestEventTracker(5, keys, 'timestamp')
+    return event_emitter, tracker
+
+
 if __name__ == '__main__':
-    event_emitter = MarketEventEmitter()
-    change_detector = MarketChangeDetector(event_emitter)
-    change_detector.run()
+    print(len(main()[1].get_current_queue_snapshot()))
