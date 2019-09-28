@@ -1,10 +1,15 @@
+from datetime import datetime
 from queue import Queue
+
+from datetime import timedelta
 
 from general_util import csv_file_with_headers_to_json_arr
 
+BUY_QUANTITY = 'buy_quantity'
+SELL_QUANTITY = "sell_quantity"
 
 class MarketEventEmitter:
-    def __init__(self, file_name='aparinds_sheet.csv'):
+    def __init__(self, file_name='spicejet.csv'):
         base_path = '/Users/ashutosh.v/Development/market_analysis_data/'
 
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
@@ -27,11 +32,11 @@ class MarketEventEmitter:
 class MarketChangeDetector:
     def __init__(self, event_emitter: MarketEventEmitter):
         self._event_emitter = event_emitter
-        keys_to_track = ['buy_quantity']
-        self._event_window_15_sec = EventWindow(window_length_seconds=15, keys_to_track=keys_to_track)
-        self._event_window_1_min = EventWindow(window_length_seconds=60, keys_to_track=keys_to_track)
-        self._event_window_10_min = EventWindow(window_length_seconds=600, keys_to_track=keys_to_track)
-        self._event_window_60_min = EventWindow(window_length_seconds=3600, keys_to_track=keys_to_track)
+        keys_to_track = [SELL_QUANTITY]
+        self._event_window_15_sec = CountBasedEventWindow(number_of_events_in_window=15, keys_to_track=keys_to_track)
+        self._event_window_1_min = CountBasedEventWindow(number_of_events_in_window=60, keys_to_track=keys_to_track)
+        self._event_window_10_min = CountBasedEventWindow(number_of_events_in_window=600, keys_to_track=keys_to_track)
+        self._event_window_60_min = CountBasedEventWindow(number_of_events_in_window=3600, keys_to_track=keys_to_track)
 
     def run(self):
         while True:
@@ -41,10 +46,10 @@ class MarketChangeDetector:
                 self._event_window_1_min.move(market_event)
                 self._event_window_10_min.move(market_event)
                 self._event_window_60_min.move(market_event)
-                avg_15_sec = self._event_window_15_sec.get_avg(key='buy_quantity')
-                avg_10_min = self._event_window_10_min.get_avg(key='buy_quantity')
+                avg_15_sec = self._event_window_15_sec.get_avg(key=SELL_QUANTITY)
+                avg_10_min = self._event_window_10_min.get_avg(key=SELL_QUANTITY)
 
-                if avg_15_sec > avg_10_min:
+                if 2 * avg_15_sec < avg_10_min:
                     print("There is a rise in the share at market_event: {}".format(market_event))
                     print("15 sec avg: {} and 10 min avg: {}".format(avg_15_sec, avg_10_min))
             except StopIteration as e:
@@ -53,12 +58,12 @@ class MarketChangeDetector:
                 break
 
 
-class EventWindow:
-    def __init__(self, window_length_seconds: int, keys_to_track: list):
-        self.__window_length = window_length_seconds
+class CountBasedEventWindow:
+    def __init__(self, number_of_events_in_window: int, keys_to_track: list):
+        self.__window_length = number_of_events_in_window
         self.__keys_to_track = keys_to_track
 
-        self._events = Queue(maxsize=window_length_seconds)
+        self._events = Queue(maxsize=number_of_events_in_window)
         self.__initialize_events_queue()
 
         self._sum = [0] * len(keys_to_track)
@@ -83,6 +88,66 @@ class EventWindow:
             return self._sum[key_pos] / self.__window_length
         else:
             return [elem/self.__window_length for elem in self._sum]
+
+
+class PerSecondLatestEventTracker:
+    DATETIME_OBJ = 'datetime'
+
+    def __init__(self, window_length_in_seconds: int, keys_to_track: list, string_date_key: str):
+        self.__window_length = window_length_in_seconds
+        self.__keys_to_track = keys_to_track
+        self.__string_date_key = string_date_key
+
+        self.__events = Queue(maxsize=window_length_in_seconds)
+
+    def move(self, json_event: dict):
+        current_event = self.__get_marshaled_event(json_event)
+
+        queue_as_list = self.__events.queue
+        last_element = queue_as_list[-1]
+
+        seconds_gap = self.__get_seconds_gap_from_last_received_event(last_element, current_event)
+
+        if seconds_gap < 0:
+            self.__overwrite_event(last_element, current_event)
+        else:
+            for i in range(seconds_gap - 1):
+                self.__events.put_nowait(last_element)
+        self.__events.put_nowait(current_event)
+
+    def get_current_queue_snapshot(self) -> list:
+        return list(self.__events.queue)
+
+    @staticmethod
+    def __get_seconds_gap_from_last_received_event(last_element, marshaled_event):
+        last_dt: datetime = last_element[PerSecondLatestEventTracker.DATETIME_OBJ]
+        curr_dt: datetime = marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ]
+        td = curr_dt - last_dt
+        seconds_gap = int(td.total_seconds())
+        return seconds_gap
+
+    def __overwrite_event(self, target, source):
+        for key in self.__keys_to_track:
+            target[key] = source.get(key)
+
+    @staticmethod
+    def __round_seconds(date_time_object):
+        new_date_time = date_time_object
+
+        if new_date_time.microsecond >= 500000:
+            new_date_time = new_date_time + timedelta(seconds=1)
+
+        return new_date_time.replace(microsecond=0)
+
+    def __get_marshaled_event(self, json_event):
+        marshaled_event = {}
+        self.__overwrite_event(marshaled_event, json_event)
+
+        current_event_time = json_event[self.__string_date_key]
+        dt = datetime.strptime(current_event_time, '%Y-%m-%d %H:%M:%S')
+        marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ] = self.__round_seconds(dt)
+
+        return marshaled_event
 
 
 if __name__ == '__main__':
