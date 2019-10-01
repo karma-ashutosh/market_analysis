@@ -5,3 +5,4 @@ __pycache__/*
 text_files/*
 bse_notifications/*
 crawed_data_output*
+venv/*
