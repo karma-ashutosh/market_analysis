@@ -22,7 +22,7 @@ VOLUME = 'volume'
 
 class MarketEventEmitter:
     def __init__(self, file_name='spicejet.csv'):
-        base_path = '/Users/ashutosh.v/Development/market_analysis_data/'
+        base_path = '/Users/ashutosh.v/Development/market_analysis_data/csv_files/'
 
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
@@ -50,7 +50,7 @@ class MarketChangeDetector:
         self._score_filter_func = score_filter_func
         self._post_processor_func = post_processor_func
 
-        self._string_date_key = '0.timestamp'
+        self._string_date_key = TIMESTAMP
 
         keys_to_track = [EMPTY_KEY, TIMESTAMP, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, LAST_PRICE]
         self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
@@ -202,31 +202,52 @@ class PerSecondLatestEventTracker:
         return marshaled_event
 
 
-def main():
-    base_filter_volume_threshold = 12000
-    vol_diff_threshold_at_second_level = 1000
-    score_sum_threshold = 4
+def main(file_name, median):
+    def get_base(val):
+        return (val * 20) / 1440
 
-    event_emitter = MarketEventEmitter(file_name='spicejet.csv')
+    base_filter_volume_threshold = get_base(median)
+    vol_diff_threshold_at_second_level = base_filter_volume_threshold / 12
+
+    print("base_filter_volume_threshold: {}, vol_diff_threshold_at_second_level: {}"
+          .format(base_filter_volume_threshold, vol_diff_threshold_at_second_level))
+
+    score_sum_threshold = 4
 
     def base_filter(q: list) -> bool:
         return start_end_diff(q, VOLUME) > base_filter_volume_threshold
 
-    def score_func_1(q: list) -> int:
+    def long_score_func_1(q: list) -> int:
         score = 0
         for i in range(1, 5):
             score = score + 1 if float(q[-i][VOLUME]) - float(q[-i - 1][VOLUME]) > vol_diff_threshold_at_second_level \
                 else score
         return score
 
-    def score_func_2(q: list) -> int:
+    def long_score_func_2(q: list) -> int:
         price_diff = start_end_diff(q, LAST_PRICE)
         buy_quantity_diff = start_end_diff(q, BUY_QUANTITY)
         sell_quantity_diff = start_end_diff(q, SELL_QUANTITY)
         return price_diff > 0 * (buy_quantity_diff > 0 + sell_quantity_diff < 0)
 
+    def short_score_func_1(q: list) -> int:
+        score = 0
+        for i in range(1, 5):
+            score = score + 1 if float(q[-i - 1][VOLUME]) - float(q[-i][VOLUME]) > vol_diff_threshold_at_second_level \
+                else score
+        return score
+
+    def short_score_func_2(q: list) -> int:
+        price_diff = start_end_diff(q, LAST_PRICE)
+        buy_quantity_diff = start_end_diff(q, BUY_QUANTITY)
+        sell_quantity_diff = start_end_diff(q, SELL_QUANTITY)
+        return price_diff < 0 * (buy_quantity_diff < 0 + sell_quantity_diff > 0)
+
     def result_score(q: list) -> int:
-        return 1
+        q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
+        new_date = result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day)
+        td = q_time - new_date
+        return (td.total_seconds() < 10 * 60) * 2
 
     def start_end_diff(q, key):
         return float(q[-1][key]) - float(q[0][key])
@@ -237,10 +258,29 @@ def main():
     def post_processor(q: list):
         print("bought dher sara stocks at : "+str(q[-1]))
 
-    MarketChangeDetector(event_emitter, 15, base_filter, [score_func_1, score_func_2, result_score], score_filter,
+    def get_result_time():
+        sym = file_name.replace(".csv", "")
+        j_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
+        time_elem = list(filter(lambda j_elem: j_elem['file_name'] == sym, j_arr))
+        if len(time_elem) != 1:
+            raise Exception("Bruh.. the result time is fucked up man.. just look at it: "+ str(time_elem))
+        return datetime.strptime(time_elem[0]['time_value'],  '%H:%M:%S')
+
+    result_time = get_result_time()
+    print("running long")
+    MarketChangeDetector(MarketEventEmitter(file_name=file_name), 15, base_filter, [long_score_func_1, long_score_func_2, result_score], score_filter,
                          post_processor).run()
-    return event_emitter
+
+    print("running short")
+    MarketChangeDetector(MarketEventEmitter(file_name=file_name), 15, base_filter, [short_score_func_1, short_score_func_2, result_score],
+                         score_filter,
+                         post_processor).run()
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main('ULTRACEMCO.csv', 35722)
+    except:
+        TIMESTAMP = "timestamp"
+        main('ULTRACEMCO.csv', 35722)
+
