@@ -5,19 +5,30 @@ from datetime import timedelta
 
 from general_util import csv_file_with_headers_to_json_arr
 
+EMPTY_KEY = ''
+
+LAST_PRICE = 'last_price'
+
+LAST_TRADE_TIME = 'last_trade_time'
+
+SELL_QUANTITY = 'sell_quantity'
+
 BUY_QUANTITY = 'buy_quantity'
-SELL_QUANTITY = "sell_quantity"
-TIMESTAMP= ['',"0.timestamp", 'volume', 'buy_quantity','sell_quantity','last_trade_time','last_price']
+
+TIMESTAMP = "0.timestamp"
+
+VOLUME = 'volume'
 
 
 class MarketEventEmitter:
     def __init__(self, file_name='spicejet.csv'):
-        base_path = './../'
+        base_path = '/Users/ashutosh.v/Development/market_analysis_data/'
 
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
-            map(lambda j_elem: self.__remove_keys(j_elem, ['depth', 'Unnamed', 'instrument_token', 'mode', 'ohlc', 'oi_day',
-                                                    'tradable']), j_arr))
+            map(lambda j_elem: self.__remove_keys(j_elem,
+                                                  ['depth', 'Unnamed', 'instrument_token', 'mode', 'ohlc', 'oi_day',
+                                                   'tradable']), j_arr))
         self.__event_iter = iter(self.__event_list)
 
     @staticmethod
@@ -31,37 +42,60 @@ class MarketEventEmitter:
 
 
 class MarketChangeDetector:
-    def __init__(self, event_emitter: MarketEventEmitter):
+    def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, score_func_list: list,
+                 score_filter_func, post_processor_func):
         self._event_emitter = event_emitter
-        keys_to_track = [TIMESTAMP]
-        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=15, keys_to_track=keys_to_track, string_date_key= '0.timestamp')
-        self._event_window_1_min = PerSecondLatestEventTracker(window_length_in_seconds=60, keys_to_track=keys_to_track,string_date_key= '0.timestamp')
-        self._event_window_10_min = PerSecondLatestEventTracker(window_length_in_seconds=600, keys_to_track=keys_to_track,string_date_key= '0.timestamp')
-        self._event_window_60_min = PerSecondLatestEventTracker(window_length_in_seconds=3600, keys_to_track=keys_to_track,string_date_key= '0.timestamp')
+        self._base_filter_func = base_filter_func
+        self._score_func_list = score_func_list
+        self._score_filter_func = score_filter_func
+        self._post_processor_func = post_processor_func
+
+        self._string_date_key = '0.timestamp'
+
+        keys_to_track = [EMPTY_KEY, TIMESTAMP, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, LAST_PRICE]
+        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
+                                                                keys_to_track=keys_to_track,
+                                                                string_date_key=self._string_date_key)
+
+        self._filter_pass_key_name = 'bool'
+        self._filter_pass_queue = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
+                                                              keys_to_track=[self._filter_pass_key_name],
+                                                              string_date_key=self._string_date_key)
 
     def run(self):
+        def set_flag_with_base_filter_func():
+            if self._base_filter_func(current_event_list_view):
+                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+            else:
+                self._filter_pass_queue.move(self.get_filter_event(market_event, False))
+
         while True:
             try:
                 market_event = self._event_emitter.emit()
-                # print(market_event,'aaa')
                 self._event_window_15_sec.move(market_event)
+                current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
 
-                self._event_window_10_min.move(market_event)
+                if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
+                    all_scores = list(map(lambda func: func(current_event_list_view), self._score_func_list))
+                    if self._score_filter_func(all_scores):
+                        self._post_processor_func(current_event_list_view)
+                        self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+                    else:
+                        set_flag_with_base_filter_func()
+                else:
+                    set_flag_with_base_filter_func()
 
-                a= self._event_window_15_sec.get_current_queue_snapshot()
-
-                print(int(a[-1]['volume'])-int(a[0]['volume']),'\t', a[-1]['datetime']-a[0]['datetime'],a[-1]['datetime'],a[0]['datetime'],'\t',a[0]['last_price'],a[-1]['last_price'],'\t', a[-1]['volume'],'\t', a[-1]['buy_quantity'],a[-1]['sell_quantity'])
-
-                avg_15_sec = self._event_window_15_sec.get_avg(key=TIMESTAMP)
-                avg_10_min = self._event_window_10_min.get_avg(key=TIMESTAMP)
-
-                if avg_15_sec < avg_10_min:
-                    print("There is a rise in the share at market_event: {}".format(market_event))
-                    print("15 sec avg: {} and 10 min avg: {}".format(avg_15_sec, avg_10_min))
             except StopIteration as e:
                 print(e)
                 print("Out of events to emit. Market closes. Go smoke all that money")
                 break
+
+    def get_filter_event(self, market_event, state: bool):
+        filter_event = {
+            self._string_date_key: market_event.get(self._string_date_key),
+            self._filter_pass_key_name: state
+        }
+        return filter_event
 
 
 class CountBasedEventWindow:
@@ -93,7 +127,7 @@ class CountBasedEventWindow:
             key_pos = self.__keys_to_track.index(key)
             return self._sum[key_pos] / self.__window_length
         else:
-            return [elem/self.__window_length for elem in self._sum]
+            return [elem / self.__window_length for elem in self._sum]
 
 
 class PerSecondLatestEventTracker:
@@ -144,7 +178,7 @@ class PerSecondLatestEventTracker:
 
     def __overwrite_event(self, target, source):
         # print(self.__keys_to_track)
-        for key in self.__keys_to_track[0]:
+        for key in self.__keys_to_track:
             # print(key)
             target[key] = source.get(key)
 
@@ -167,13 +201,6 @@ class PerSecondLatestEventTracker:
 
         return marshaled_event
 
-    def get_avg(self, key=None):
-        if key:
-            key_pos = self.__keys_to_track.index(key)
-            return self._sum[key_pos] / self.__window_length
-        else:
-            return [elem/self.__window_length for elem in self._sum]
-
 
 def main():
     # print('hees')
@@ -185,10 +212,39 @@ def main():
 
     # tracker = PerSecondLatestEventTracker(5, keys, 'timestamp')
 
-    MarketChangeDetector(event_emitter).run()
-    return event_emitter, tracker
+    # def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, score_func_list: list,
+    # score_filter_func, post_processor_func):
+    def base_filter(q: list) -> bool:
+        return start_end_diff(q, VOLUME) > 12000
 
+    def score_func_1(q: list) -> int:
+        score = 0
+        for i in range(1, 5):
+            score = score + 1 if float(q[-i][VOLUME]) - float(q[-i - 1][VOLUME]) > 1000 else score
+        return score
+
+    def score_func_2(q: list) -> int:
+        price_diff = start_end_diff(q, LAST_PRICE)
+        buy_quantity_diff = start_end_diff(q, BUY_QUANTITY)
+        sell_quantity_diff = start_end_diff(q, SELL_QUANTITY)
+        return price_diff > 0 * (buy_quantity_diff > 0 + sell_quantity_diff < 0)
+
+    def result_score(q: list) -> int:
+        return 1
+
+    def start_end_diff(q, key):
+        return float(q[-1][key]) - float(q[0][key])
+
+    def score_filter(score_list: list) -> bool:
+        return all([score > 0 for score in score_list]) * sum(score_list) > 4
+
+    def post_processor(q: list):
+        print("bought dher sara stocks at : "+str(q[-1]))
+
+    MarketChangeDetector(event_emitter, 15, base_filter, [score_func_1, score_func_2, result_score], score_filter,
+                         post_processor).run()
+    return event_emitter
 
 
 if __name__ == '__main__':
-    print(len(main()[1].get_current_queue_snapshot()))
+    main()
