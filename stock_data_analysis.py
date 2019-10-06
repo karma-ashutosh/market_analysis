@@ -7,17 +7,17 @@ from general_util import csv_file_with_headers_to_json_arr
 
 BUY_QUANTITY = 'buy_quantity'
 SELL_QUANTITY = "sell_quantity"
+TIMESTAMP= ['',"0.timestamp", 'volume', 'buy_quantity','sell_quantity','last_trade_time','last_price']
 
 
 class MarketEventEmitter:
     def __init__(self, file_name='spicejet.csv'):
-        base_path = '/Users/ashutosh.v/Development/market_analysis_data/'
+        base_path = './../'
 
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
             map(lambda j_elem: self.__remove_keys(j_elem, ['depth', 'Unnamed', 'instrument_token', 'mode', 'ohlc', 'oi_day',
-                                                    'tradable']),
-                j_arr))
+                                                    'tradable']), j_arr))
         self.__event_iter = iter(self.__event_list)
 
     @staticmethod
@@ -33,24 +33,29 @@ class MarketEventEmitter:
 class MarketChangeDetector:
     def __init__(self, event_emitter: MarketEventEmitter):
         self._event_emitter = event_emitter
-        keys_to_track = [SELL_QUANTITY]
-        self._event_window_15_sec = CountBasedEventWindow(number_of_events_in_window=15, keys_to_track=keys_to_track)
-        self._event_window_1_min = CountBasedEventWindow(number_of_events_in_window=60, keys_to_track=keys_to_track)
-        self._event_window_10_min = CountBasedEventWindow(number_of_events_in_window=600, keys_to_track=keys_to_track)
-        self._event_window_60_min = CountBasedEventWindow(number_of_events_in_window=3600, keys_to_track=keys_to_track)
+        keys_to_track = [TIMESTAMP]
+        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=15, keys_to_track=keys_to_track, string_date_key= '0.timestamp')
+        self._event_window_1_min = PerSecondLatestEventTracker(window_length_in_seconds=60, keys_to_track=keys_to_track,string_date_key= '0.timestamp')
+        self._event_window_10_min = PerSecondLatestEventTracker(window_length_in_seconds=600, keys_to_track=keys_to_track,string_date_key= '0.timestamp')
+        self._event_window_60_min = PerSecondLatestEventTracker(window_length_in_seconds=3600, keys_to_track=keys_to_track,string_date_key= '0.timestamp')
 
     def run(self):
         while True:
             try:
                 market_event = self._event_emitter.emit()
+                # print(market_event,'aaa')
                 self._event_window_15_sec.move(market_event)
-                self._event_window_1_min.move(market_event)
-                self._event_window_10_min.move(market_event)
-                self._event_window_60_min.move(market_event)
-                avg_15_sec = self._event_window_15_sec.get_avg(key=SELL_QUANTITY)
-                avg_10_min = self._event_window_10_min.get_avg(key=SELL_QUANTITY)
 
-                if 2 * avg_15_sec < avg_10_min:
+                self._event_window_10_min.move(market_event)
+
+                a= self._event_window_15_sec.get_current_queue_snapshot()
+
+                print(int(a[-1]['volume'])-int(a[0]['volume']),'\t', a[-1]['datetime']-a[0]['datetime'],a[-1]['datetime'],a[0]['datetime'],'\t',a[0]['last_price'],a[-1]['last_price'],'\t', a[-1]['volume'],'\t', a[-1]['buy_quantity'],a[-1]['sell_quantity'])
+
+                avg_15_sec = self._event_window_15_sec.get_avg(key=TIMESTAMP)
+                avg_10_min = self._event_window_10_min.get_avg(key=TIMESTAMP)
+
+                if avg_15_sec < avg_10_min:
                     print("There is a rise in the share at market_event: {}".format(market_event))
                     print("15 sec avg: {} and 10 min avg: {}".format(avg_15_sec, avg_10_min))
             except StopIteration as e:
@@ -100,6 +105,7 @@ class PerSecondLatestEventTracker:
         self.__string_date_key = string_date_key
 
         self.__events = Queue(maxsize=window_length_in_seconds)
+        self._sum = [0] * len(keys_to_track)
 
     def get_current_queue_snapshot(self) -> list:
         return list(self.__events.queue)
@@ -111,7 +117,7 @@ class PerSecondLatestEventTracker:
         if len(queue_as_list) > 0:
             last_element = queue_as_list[-1]
             seconds_gap = self.__get_seconds_gap_from_last_received_event(last_element, current_event)
-            print(seconds_gap)
+            # print(seconds_gap, 'gap')
 
             if seconds_gap < 1:
                 self.__overwrite_event(last_element, current_event)
@@ -130,14 +136,16 @@ class PerSecondLatestEventTracker:
 
     @staticmethod
     def __get_seconds_gap_from_last_received_event(last_element, marshaled_event):
-        last_dt: datetime = last_element[PerSecondLatestEventTracker.DATETIME_OBJ]
-        curr_dt: datetime = marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ]
+        last_dt = last_element[PerSecondLatestEventTracker.DATETIME_OBJ]
+        curr_dt = marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ]
         td = curr_dt - last_dt
         seconds_gap = int(td.total_seconds())
         return seconds_gap
 
     def __overwrite_event(self, target, source):
-        for key in self.__keys_to_track:
+        # print(self.__keys_to_track)
+        for key in self.__keys_to_track[0]:
+            # print(key)
             target[key] = source.get(key)
 
     @staticmethod
@@ -159,14 +167,27 @@ class PerSecondLatestEventTracker:
 
         return marshaled_event
 
+    def get_avg(self, key=None):
+        if key:
+            key_pos = self.__keys_to_track.index(key)
+            return self._sum[key_pos] / self.__window_length
+        else:
+            return [elem/self.__window_length for elem in self._sum]
+
 
 def main():
-    keys = ['', 'last_price', 'last_quantity', 'volume', 'buy_quantity', 'sell_quantity', 'last_trade_time',
-            'timestamp',
-            'average_price', 'change', 'oi', 'Delta']
-    event_emitter = MarketEventEmitter(file_name='aparinds_sheet.csv')
-    tracker = PerSecondLatestEventTracker(5, keys, 'timestamp')
+    # print('hees')
+    # keys = ['', 'last_price', 'last_quantity', 'volume', 'buy_quantity', 'sell_quantity', 'last_trade_time',
+    #         '0.timestamp','average_price', 'change', 'oi', 'Delta']
+    # keys= ['volume']
+    event_emitter = MarketEventEmitter(file_name='spicejet.csv')
+    # print(event_emitter.emit())
+
+    # tracker = PerSecondLatestEventTracker(5, keys, 'timestamp')
+
+    MarketChangeDetector(event_emitter).run()
     return event_emitter, tracker
+
 
 
 if __name__ == '__main__':
