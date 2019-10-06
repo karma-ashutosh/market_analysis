@@ -203,24 +203,20 @@ class PerSecondLatestEventTracker:
 
 
 def main():
-    # print('hees')
-    # keys = ['', 'last_price', 'last_quantity', 'volume', 'buy_quantity', 'sell_quantity', 'last_trade_time',
-    #         '0.timestamp','average_price', 'change', 'oi', 'Delta']
-    # keys= ['volume']
+    base_filter_volume_threshold = 12000
+    vol_diff_threshold_at_second_level = 1000
+    score_sum_threshold = 4
+
     event_emitter = MarketEventEmitter(file_name='spicejet.csv')
-    # print(event_emitter.emit())
 
-    # tracker = PerSecondLatestEventTracker(5, keys, 'timestamp')
-
-    # def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, score_func_list: list,
-    # score_filter_func, post_processor_func):
     def base_filter(q: list) -> bool:
-        return start_end_diff(q, VOLUME) > 12000
+        return start_end_diff(q, VOLUME) > base_filter_volume_threshold
 
     def score_func_1(q: list) -> int:
         score = 0
         for i in range(1, 5):
-            score = score + 1 if float(q[-i][VOLUME]) - float(q[-i - 1][VOLUME]) > 1000 else score
+            score = score + 1 if float(q[-i][VOLUME]) - float(q[-i - 1][VOLUME]) > vol_diff_threshold_at_second_level \
+                else score
         return score
 
     def score_func_2(q: list) -> int:
@@ -236,7 +232,7 @@ def main():
         return float(q[-1][key]) - float(q[0][key])
 
     def score_filter(score_list: list) -> bool:
-        return all([score > 0 for score in score_list]) * sum(score_list) > 4
+        return all([score > 0 for score in score_list]) * sum(score_list) > score_sum_threshold
 
     def post_processor(q: list):
         print("bought dher sara stocks at : "+str(q[-1]))
