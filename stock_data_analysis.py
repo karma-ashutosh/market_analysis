@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from queue import Queue
 
 from datetime import timedelta
@@ -74,11 +75,12 @@ class MarketEventEmitter:
 
 
 class MarketChangeDetector:
-    def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, score_func_list: list,
-                 score_filter_func, post_processor_func):
+    def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, long_score_func_list: list,
+                 short_score_func_list: list, score_filter_func, post_processor_func):
         self._event_emitter = event_emitter
         self._base_filter_func = base_filter_func
-        self._score_func_list = score_func_list
+        self._long_score_func_list = long_score_func_list
+        self._short_score_func_list = long_score_func_list
         self._score_filter_func = score_filter_func
         self._post_processor_func = post_processor_func
 
@@ -112,9 +114,13 @@ class MarketChangeDetector:
                             and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
                             and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
                         x = 0
-                    all_scores = list(map(lambda func: func(current_event_list_view), self._score_func_list))
-                    if self._score_filter_func(all_scores):
-                        self._post_processor_func(current_event_list_view)
+                    long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
+                    short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
+                    if self._score_filter_func(long_scores):
+                        self._post_processor_func(current_event_list_view, TransactionType.LONG)
+                        self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+                    elif self._score_filter_func(short_scores):
+                        self._post_processor_func(current_event_list_view, TransactionType.SHORT)
                         self._filter_pass_queue.move(self.get_filter_event(market_event, True))
                     else:
                         set_flag_with_base_filter_func()
@@ -206,6 +212,11 @@ class PerSecondLatestEventTracker:
         return marshaled_event
 
 
+class TransactionType(Enum):
+    SHORT = 1
+    LONG = 2
+
+
 class MainClass:
     def __init__(self, file_name, median, price_percentage_diff, result_date):
         self._file_name = file_name
@@ -219,13 +230,8 @@ class MainClass:
         self._market_open_time = datetime.strptime(result_date + ' 09:15:00', '%Y-%m-%d %H:%M:%S')
 
     def run(self):
-        print("running long")
         MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
                              [self.volume_score_function, self.long_price_quantity_score, self.result_score],
-                             self.score_filter, self.post_processor).run()
-
-        print("running short")
-        MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
                              [self.volume_score_function, self.short_price_quantity_score, self.result_score],
                              self.score_filter, self.post_processor).run()
 
@@ -304,14 +310,19 @@ class MainClass:
         return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
 
     @staticmethod
-    def post_processor(q: list):
-        print("bought dher sara stocks at : " + str(q[-1]))
+    def post_processor(q: list, type: TransactionType):
+        msg = "buy" if type == TransactionType.LONG else "sell"
+        print("{} stocks at : ".format(msg) + str(q[-1]))
 
 
 if __name__ == '__main__':
+
+    def func():
+        MainClass('SPICEJET.csv', 912492, 0.2, '2019-08-09').run()
+
     try:
-        MainClass('BANKINDIA.csv', 939429, 0.2, '2019-07-30').run()
+        func()
     except:
         TIMESTAMP = "timestamp"
-        MainClass('BANKINDIA.csv', 939429, 0.2, '2019-07-30').run()
+        func()
 
