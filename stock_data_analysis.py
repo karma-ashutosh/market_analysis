@@ -108,11 +108,11 @@ class MarketChangeDetector:
                 current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
 
                 if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
-                    all_scores = list(map(lambda func: func(current_event_list_view), self._score_func_list))
                     if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 34 \
-                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 55:
+                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
+                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
                         x = 0
+                    all_scores = list(map(lambda func: func(current_event_list_view), self._score_func_list))
                     if self._score_filter_func(all_scores):
                         self._post_processor_func(current_event_list_view)
                         self._filter_pass_queue.move(self.get_filter_event(market_event, True))
@@ -269,7 +269,7 @@ class MainClass:
         q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
         new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day)
         td = q_time - new_date
-        return (abs(td.total_seconds()) < 10 * 60) * 2
+        return (0 <= td.total_seconds() < 10 * 60) * 2
 
     def long_price_quantity_score(self, q: list) -> int:
         price_diff = self.start_end_diff(q, LAST_PRICE)
@@ -301,7 +301,7 @@ class MainClass:
         return float(q[-1][key]) - float(q[0][key])
 
     def score_filter(self, score_list: list) -> bool:
-        return all([score > 0 for score in score_list]) * sum(score_list) > self._score_sum_threshold
+        return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
 
     @staticmethod
     def post_processor(q: list):
@@ -310,8 +310,8 @@ class MainClass:
 
 if __name__ == '__main__':
     try:
-        MainClass('JUBLFOOD.csv', 67840, 0.2, '2019-07-24').run()
+        MainClass('BANKINDIA.csv', 939429, 0.2, '2019-07-30').run()
     except:
         TIMESTAMP = "timestamp"
-        MainClass('JUBLFOOD.csv', 67840, 0.2, '2019-07-24').run()
+        MainClass('BANKINDIA.csv', 939429, 0.2, '2019-07-30').run()
 
