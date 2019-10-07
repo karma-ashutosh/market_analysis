@@ -111,7 +111,7 @@ class MarketChangeDetector:
                     all_scores = list(map(lambda func: func(current_event_list_view), self._score_func_list))
                     if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
                             and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 34 \
-                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 50:
+                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 55:
                         x = 0
                     if self._score_filter_func(all_scores):
                         self._post_processor_func(current_event_list_view)
@@ -234,10 +234,12 @@ class MainClass:
         oldest_elem = q[0]
         oldest_elem_time: datetime = oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
         seconds_till_now = (oldest_elem_time - self._market_open_time).total_seconds()
-        moving_vol_threshold = self.get_vol_threshold(float(oldest_elem[VOLUME]), seconds_till_now)
-        if moving_vol_threshold > self._base_filter_volume_threshold:
-            self._base_filter_volume_threshold = moving_vol_threshold
-            self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
+
+        if seconds_till_now > 2 * 60 * 60:
+            moving_vol_threshold = self.get_vol_threshold(float(oldest_elem[VOLUME]), seconds_till_now)
+            if moving_vol_threshold > self._base_filter_volume_threshold:
+                self._base_filter_volume_threshold = moving_vol_threshold
+                self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
 
         return start_end_vol_diff > self._base_filter_volume_threshold
 
