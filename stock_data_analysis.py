@@ -20,6 +20,38 @@ TIMESTAMP = "0.timestamp"
 VOLUME = 'volume'
 
 
+class CountBasedEventWindow:
+    def __init__(self, number_of_events_in_window: int, keys_to_track: list):
+        self.__window_length = number_of_events_in_window
+        self.__keys_to_track = keys_to_track
+
+        self._events = Queue(maxsize=number_of_events_in_window)
+        self.__initialize_events_queue()
+
+        self._sum = [0] * len(keys_to_track)
+
+    def __initialize_events_queue(self):
+        d = {}
+        for key in self.__keys_to_track:
+            d[key] = 0
+        for _ in range(self.__window_length):
+            self._events.put_nowait(d)
+
+    def move(self, json_event: dict):
+        out_of_window_event = self._events.get_nowait()
+        for i in range(len(self.__keys_to_track)):
+            key = self.__keys_to_track[i]
+            self._sum[i] = self._sum[i] - float(out_of_window_event.get(key, 0)) + float(json_event.get(key, 0))
+        self._events.put_nowait(json_event)
+
+    def get_avg(self, key=None):
+        if key:
+            key_pos = self.__keys_to_track.index(key)
+            return self._sum[key_pos] / self.__window_length
+        else:
+            return [elem / self.__window_length for elem in self._sum]
+
+
 class MarketEventEmitter:
     def __init__(self, file_name='spicejet.csv'):
         base_path = '/Users/ashutosh.v/Development/market_analysis_data/csv_files/'
@@ -77,6 +109,10 @@ class MarketChangeDetector:
 
                 if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
                     all_scores = list(map(lambda func: func(current_event_list_view), self._score_func_list))
+                    if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
+                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 34 \
+                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 50:
+                        x = 0
                     if self._score_filter_func(all_scores):
                         self._post_processor_func(current_event_list_view)
                         self._filter_pass_queue.move(self.get_filter_event(market_event, True))
@@ -96,38 +132,6 @@ class MarketChangeDetector:
             self._filter_pass_key_name: state
         }
         return filter_event
-
-
-class CountBasedEventWindow:
-    def __init__(self, number_of_events_in_window: int, keys_to_track: list):
-        self.__window_length = number_of_events_in_window
-        self.__keys_to_track = keys_to_track
-
-        self._events = Queue(maxsize=number_of_events_in_window)
-        self.__initialize_events_queue()
-
-        self._sum = [0] * len(keys_to_track)
-
-    def __initialize_events_queue(self):
-        d = {}
-        for key in self.__keys_to_track:
-            d[key] = 0
-        for _ in range(self.__window_length):
-            self._events.put_nowait(d)
-
-    def move(self, json_event: dict):
-        out_of_window_event = self._events.get_nowait()
-        for i in range(len(self.__keys_to_track)):
-            key = self.__keys_to_track[i]
-            self._sum[i] = self._sum[i] - float(out_of_window_event.get(key, 0)) + float(json_event.get(key, 0))
-        self._events.put_nowait(json_event)
-
-    def get_avg(self, key=None):
-        if key:
-            key_pos = self.__keys_to_track.index(key)
-            return self._sum[key_pos] / self.__window_length
-        else:
-            return [elem / self.__window_length for elem in self._sum]
 
 
 class PerSecondLatestEventTracker:
@@ -202,85 +206,110 @@ class PerSecondLatestEventTracker:
         return marshaled_event
 
 
-def main(file_name, median):
-    def get_base(val):
-        return (val * 20) / 1440
+class MainClass:
+    def __init__(self, file_name, median, price_percentage_diff, result_date):
+        self._file_name = file_name
+        self._median = median
+        self._price_percentage_diff = price_percentage_diff
+        self._result_date = result_date
+        self._result_time = self.get_result_time()
+        self._base_filter_volume_threshold = self.get_vol_threshold(median, 6 * 60 * 60)
+        self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
+        self._score_sum_threshold = 4
+        self._market_open_time = datetime.strptime(result_date + ' 09:15:00', '%Y-%m-%d %H:%M:%S')
 
-    base_filter_volume_threshold = get_base(median)
-    vol_diff_threshold_at_second_level = base_filter_volume_threshold / 12
+    def run(self):
+        print("running long")
+        MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
+                             [self.volume_score_function, self.long_price_quantity_score, self.result_score],
+                             self.score_filter, self.post_processor).run()
 
-    print("base_filter_volume_threshold: {}, vol_diff_threshold_at_second_level: {}"
-          .format(base_filter_volume_threshold, vol_diff_threshold_at_second_level))
+        print("running short")
+        MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
+                             [self.volume_score_function, self.short_price_quantity_score, self.result_score],
+                             self.score_filter, self.post_processor).run()
 
-    score_sum_threshold = 4
+    def base_filter(self, q: list) -> bool:
+        start_end_vol_diff = self.start_end_diff(q, VOLUME)
+        oldest_elem = q[0]
+        oldest_elem_time: datetime = oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
+        seconds_till_now = (oldest_elem_time - self._market_open_time).total_seconds()
+        moving_vol_threshold = self.get_vol_threshold(float(oldest_elem[VOLUME]), seconds_till_now)
+        if moving_vol_threshold > self._base_filter_volume_threshold:
+            self._base_filter_volume_threshold = moving_vol_threshold
+            self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
 
-    def base_filter(q: list) -> bool:
-        return start_end_diff(q, VOLUME) > base_filter_volume_threshold
+        return start_end_vol_diff > self._base_filter_volume_threshold
 
-    def long_score_func_1(q: list) -> int:
-        score = 0
-        for i in range(1, 5):
-            score = score + 1 if float(q[-i][VOLUME]) - float(q[-i - 1][VOLUME]) > vol_diff_threshold_at_second_level \
-                else score
-        return score
-
-    def long_score_func_2(q: list) -> int:
-        price_diff = start_end_diff(q, LAST_PRICE)
-        buy_quantity_diff = start_end_diff(q, BUY_QUANTITY)
-        sell_quantity_diff = start_end_diff(q, SELL_QUANTITY)
-        return price_diff > 0 * (buy_quantity_diff > 0 + sell_quantity_diff < 0)
-
-    def short_score_func_1(q: list) -> int:
-        score = 0
-        for i in range(1, 5):
-            score = score + 1 if float(q[-i - 1][VOLUME]) - float(q[-i][VOLUME]) > vol_diff_threshold_at_second_level \
-                else score
-        return score
-
-    def short_score_func_2(q: list) -> int:
-        price_diff = start_end_diff(q, LAST_PRICE)
-        buy_quantity_diff = start_end_diff(q, BUY_QUANTITY)
-        sell_quantity_diff = start_end_diff(q, SELL_QUANTITY)
-        return price_diff < 0 * (buy_quantity_diff < 0 + sell_quantity_diff > 0)
-
-    def result_score(q: list) -> int:
-        q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
-        new_date = result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day)
-        td = q_time - new_date
-        return (td.total_seconds() < 10 * 60) * 2
-
-    def start_end_diff(q, key):
-        return float(q[-1][key]) - float(q[0][key])
-
-    def score_filter(score_list: list) -> bool:
-        return all([score > 0 for score in score_list]) * sum(score_list) > score_sum_threshold
-
-    def post_processor(q: list):
-        print("bought dher sara stocks at : "+str(q[-1]))
-
-    def get_result_time():
-        sym = file_name.replace(".csv", "")
+    def get_result_time(self):
+        sym = self._file_name.replace(".csv", "")
         j_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
         time_elem = list(filter(lambda j_elem: j_elem['file_name'] == sym, j_arr))
         if len(time_elem) != 1:
-            raise Exception("Bruh.. the result time is fucked up man.. just look at it: "+ str(time_elem))
-        return datetime.strptime(time_elem[0]['time_value'],  '%H:%M:%S')
+            raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
+        return datetime.strptime(time_elem[0]['time_value'], '%H:%M:%S')
 
-    result_time = get_result_time()
-    print("running long")
-    MarketChangeDetector(MarketEventEmitter(file_name=file_name), 15, base_filter, [long_score_func_1, long_score_func_2, result_score], score_filter,
-                         post_processor).run()
+    @staticmethod
+    def get_vol_threshold(vol_till_now, seconds_till_now):
+        total_15_sec_slots = seconds_till_now / 15
+        per_15_sec_slot_vol = vol_till_now / total_15_sec_slots
+        return per_15_sec_slot_vol * 20
 
-    print("running short")
-    MarketChangeDetector(MarketEventEmitter(file_name=file_name), 15, base_filter, [short_score_func_1, short_score_func_2, result_score],
-                         score_filter,
-                         post_processor).run()
+    def volume_score_function(self, q: list) -> int:
+        score = 0
+        for i in range(1, 5):
+            score = score + 1 if float(q[-i][VOLUME]) - float(
+                q[-i - 1][VOLUME]) > self._vol_diff_threshold_at_second_level \
+                else score
+        return score
+
+    def result_score(self, q: list) -> int:
+        q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
+        new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day)
+        td = q_time - new_date
+        return (abs(td.total_seconds()) < 10 * 60) * 2
+
+    def long_price_quantity_score(self, q: list) -> int:
+        price_diff = self.start_end_diff(q, LAST_PRICE)
+        buy_quantity_diff = self.start_end_diff(q, BUY_QUANTITY)
+        sell_quantity_diff = self.start_end_diff(q, SELL_QUANTITY)
+
+        score = 0
+        if price_diff > 0 and self.price_diff_threshold_breached(price_diff, q):
+            score = score + 1 if buy_quantity_diff > 0 else score
+            score = score + 1 if sell_quantity_diff < 0 else score
+        return score
+
+    def short_price_quantity_score(self, q: list) -> int:
+        price_diff = self.start_end_diff(q, LAST_PRICE)
+        buy_quantity_diff = self.start_end_diff(q, BUY_QUANTITY)
+        sell_quantity_diff = self.start_end_diff(q, SELL_QUANTITY)
+
+        score = 0
+        if price_diff < 0 and self.price_diff_threshold_breached(price_diff, q):
+            score = score + 1 if buy_quantity_diff < 0 else score
+            score = score + 1 if sell_quantity_diff > 0 else score
+        return score
+
+    def price_diff_threshold_breached(self, price_diff, q):
+        return abs(price_diff) > (self._price_percentage_diff * float(q[0][LAST_PRICE])) / 100
+
+    @staticmethod
+    def start_end_diff(q, key):
+        return float(q[-1][key]) - float(q[0][key])
+
+    def score_filter(self, score_list: list) -> bool:
+        return all([score > 0 for score in score_list]) * sum(score_list) > self._score_sum_threshold
+
+    @staticmethod
+    def post_processor(q: list):
+        print("bought dher sara stocks at : " + str(q[-1]))
 
 
 if __name__ == '__main__':
     try:
-        main('ULTRACEMCO.csv', 35722)
+        MainClass('JUBLFOOD.csv', 67840, 0.2, '2019-07-24').run()
     except:
         TIMESTAMP = "timestamp"
-        main('ULTRACEMCO.csv', 35722)
+        MainClass('JUBLFOOD.csv', 67840, 0.2, '2019-07-24').run()
 
