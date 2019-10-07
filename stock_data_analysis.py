@@ -80,7 +80,7 @@ class MarketChangeDetector:
         self._event_emitter = event_emitter
         self._base_filter_func = base_filter_func
         self._long_score_func_list = long_score_func_list
-        self._short_score_func_list = long_score_func_list
+        self._short_score_func_list = short_score_func_list
         self._score_filter_func = score_filter_func
         self._post_processor_func = post_processor_func
 
@@ -109,6 +109,8 @@ class MarketChangeDetector:
                 self._event_window_15_sec.move(market_event)
                 current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
 
+                self.debug_point(current_event_list_view)
+
                 if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
                     if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
                             and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
@@ -124,6 +126,7 @@ class MarketChangeDetector:
                         self._filter_pass_queue.move(self.get_filter_event(market_event, True))
                     else:
                         set_flag_with_base_filter_func()
+
                 else:
                     set_flag_with_base_filter_func()
 
@@ -131,6 +134,12 @@ class MarketChangeDetector:
                 print(e)
                 print("Out of events to emit. Market closes. Go smoke all that money")
                 break
+
+    def debug_point(self, current_event_list_view):
+        if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
+                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
+                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
+            x = 0
 
     def get_filter_event(self, market_event, state: bool):
         filter_event = {
@@ -228,6 +237,7 @@ class MainClass:
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
         self._market_open_time = datetime.strptime(result_date + ' 09:15:00', '%Y-%m-%d %H:%M:%S')
+        print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
 
     def run(self):
         MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
@@ -273,7 +283,7 @@ class MainClass:
 
     def result_score(self, q: list) -> int:
         q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
-        new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day)
+        new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day) + timedelta(seconds=10)
         td = q_time - new_date
         return (0 <= td.total_seconds() < 10 * 60) * 2
 
@@ -318,7 +328,7 @@ class MainClass:
 if __name__ == '__main__':
 
     def func():
-        MainClass('SPICEJET.csv', 912492, 0.2, '2019-08-09').run()
+        MainClass('JUBLFOOD.csv', 31956, 0.2, '2019-07-24').run()
 
     try:
         func()
