@@ -283,7 +283,7 @@ class MainClass:
 
     def result_score(self, q: list) -> int:
         q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
-        new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day) + timedelta(seconds=10)
+        new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day) + timedelta(seconds=15)
         td = q_time - new_date
         return (0 <= td.total_seconds() < 10 * 60) * 2
 
@@ -328,7 +328,7 @@ class MainClass:
 if __name__ == '__main__':
 
     def func():
-        MainClass('JUBLFOOD.csv', 31956, 0.2, '2019-07-24').run()
+        MainClass('BRITANNIA.csv', 21349, 0.2, '2019-08-09').run()
 
     try:
         func()
