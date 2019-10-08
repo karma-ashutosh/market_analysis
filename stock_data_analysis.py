@@ -390,7 +390,8 @@ if __name__ == '__main__':
             except:
                 func(name, "0.timestamp")
         except Exception as e:
-            raise e
+            print("failed to process file: " + name)
+            # raise e
 
     json_file_path = "../market_analysis_data/simulation_result.json"
     csv_file_path = "../market_analysis_data/simulation_result.csv"
