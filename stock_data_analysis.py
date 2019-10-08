@@ -17,8 +17,6 @@ SELL_QUANTITY = 'sell_quantity'
 
 BUY_QUANTITY = 'buy_quantity'
 
-TIMESTAMP = "0.timestamp"
-
 VOLUME = 'volume'
 
 
@@ -81,7 +79,7 @@ class MarketEventEmitter:
 
 
 class MarketChangeDetector:
-    def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, long_score_func_list: list,
+    def __init__(self, event_emitter: MarketEventEmitter, string_date_key, window_len, base_filter_func, long_score_func_list: list,
                  short_score_func_list: list, score_filter_func, execute_entry_func, execute_exit_func):
         self._event_emitter = event_emitter
         self._base_filter_func = base_filter_func
@@ -91,9 +89,9 @@ class MarketChangeDetector:
         self._execute_entry_func = execute_entry_func
         self._execute_exit_func = execute_exit_func
 
-        self._string_date_key = TIMESTAMP
+        self._string_date_key = string_date_key
 
-        keys_to_track = [EMPTY_KEY, TIMESTAMP, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, LAST_PRICE]
+        keys_to_track = [EMPTY_KEY, self._string_date_key, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, LAST_PRICE]
         self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
                                                                 keys_to_track=keys_to_track,
                                                                 string_date_key=self._string_date_key)
@@ -244,11 +242,12 @@ class TransactionType(Enum):
 
 
 class MainClass:
-    def __init__(self, file_name, median, price_percentage_diff, result_time: datetime):
+    def __init__(self, file_name, median, price_percentage_diff, result_time: datetime, string_date_key):
         self._file_name = file_name
         self._median = median
         self._price_percentage_diff = price_percentage_diff
         self._result_time = result_time + timedelta(seconds=15)
+        self._string_date_key = string_date_key
         self._base_filter_volume_threshold = self.get_vol_threshold(median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
@@ -260,7 +259,7 @@ class MainClass:
         # print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
 
     def run(self):
-        MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
+        MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), self._string_date_key, 15, self.base_filter,
                              [self.volume_score_function, self.long_price_quantity_score, self.result_score],
                              [self.volume_score_function, self.short_price_quantity_score, self.result_score],
                              self.score_filter, self.entry_function, self.exit_function).run()
@@ -273,7 +272,7 @@ class MainClass:
     def base_filter(self, q: list) -> bool:
         start_end_vol_diff = self.start_end_diff(q, VOLUME)
         oldest_elem = q[0]
-        oldest_elem_time= oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
+        oldest_elem_time = oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
         seconds_till_now = (oldest_elem_time - self._market_open_time).total_seconds()
 
         if seconds_till_now > 2 * 60 * 60:
@@ -298,7 +297,7 @@ class MainClass:
         return score
 
     def result_score(self, q: list) -> int:
-        q_time= q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
+        q_time = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
         td = q_time - self._result_time
         return (0 <= td.total_seconds() < 10 * 60) * 2
 
@@ -359,8 +358,10 @@ if __name__ == '__main__':
     summary_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
     names = list(map(lambda j_elem: j_elem['file_name'], summary_arr))
 
+
     def get_median(symbol):
         return list(filter(lambda j_elem: j_elem['stock_identifier'] == symbol, stats))[0]['volume_median']
+
 
     def get_result_time(symbol):
         time_elem = list(filter(lambda j_elem: j_elem['file_name'] == symbol, summary_arr))
@@ -371,21 +372,21 @@ if __name__ == '__main__':
 
     results = []
 
-    def func(file_name):
-        result = MainClass(file_name + ".csv", get_median(file_name), 0.2, get_result_time(file_name)).run()
+
+    def func(file_name, string_date_key):
+        result = MainClass(file_name + ".csv", get_median(file_name), 0.2, get_result_time(file_name), string_date_key) \
+            .run()
         result['file_name'] = file_name
         results.append(result)
 
-    for name in names[:1]:
+
+    for name in names:
         try:
             try:
-                TIMESTAMP = "timestamp"
-                func(name)
+                func(name, "timestamp")
             except:
-                TIMESTAMP = "0.timestamp"
-                func(name)
+                func(name, "0.timestamp")
         except Exception as e:
-            print("failed to process name: "+name+ str(e))
+            print("failed to process name: " + name + str(e))
     with open("../market_analysis_data/simulation_result.json", 'w') as handle:
         json.dump(results, handle, indent=2)
-
