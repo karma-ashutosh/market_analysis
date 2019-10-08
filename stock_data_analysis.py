@@ -5,7 +5,7 @@ from queue import Queue
 
 from datetime import timedelta
 
-from general_util import csv_file_with_headers_to_json_arr
+from general_util import csv_file_with_headers_to_json_arr, json_file_to_csv
 
 EMPTY_KEY = ''
 
@@ -388,5 +388,10 @@ if __name__ == '__main__':
                 func(name, "0.timestamp")
         except Exception as e:
             print("failed to process name: " + name + str(e))
-    with open("../market_analysis_data/simulation_result.json", 'w') as handle:
+
+    json_file_path = "../market_analysis_data/simulation_result.json"
+    csv_file_path = "../market_analysis_data/simulation_result.csv"
+    with open(json_file_path, 'w') as handle:
         json.dump(results, handle, indent=2)
+
+    json_file_to_csv(json_file_path, csv_file_path)
