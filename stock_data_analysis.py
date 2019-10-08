@@ -5,7 +5,7 @@ from queue import Queue
 
 from datetime import timedelta
 
-from general_util import csv_file_with_headers_to_json_arr, json_file_to_csv
+from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 
 EMPTY_KEY = ''
 
@@ -396,5 +396,6 @@ if __name__ == '__main__':
     csv_file_path = "../market_analysis_data/simulation_result.csv"
     with open(json_file_path, 'w') as handle:
         json.dump(results, handle, indent=2)
-    #
-    # json_file_to_csv(json_file_path, csv_file_path)
+
+    flat_j_arr = [flatten(j_elem) for j_elem in results]
+    json_arr_to_csv(flat_j_arr, csv_file_path)

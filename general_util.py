@@ -210,6 +210,18 @@ def clean_domains(path):
     f.close()
 
 
+def flatten(j_elem: dict) -> dict:
+    result = {}
+    for key in j_elem.keys():
+        if type(j_elem[key]) == dict:
+            child_flattened = flatten(j_elem[key])
+            for child_key in child_flattened.keys():
+                result["{}_{}".format(key, child_key)] = child_flattened[child_key]
+        else:
+            result[key] = j_elem[key]
+    return result
+
+
 def csv_to_json(rows, keys):
     j_arr = []
     for entry in rows:
