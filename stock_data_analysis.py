@@ -255,7 +255,7 @@ class MainClass:
         self._market_open_time = self._result_time.replace(hour=9, minute=15, second=0)
         self._entry_price = None
         self._exit_price = None
-        self._transaction_type: TransactionType = None
+        self._transaction_type = None
 
         # print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
 
@@ -273,7 +273,7 @@ class MainClass:
     def base_filter(self, q: list) -> bool:
         start_end_vol_diff = self.start_end_diff(q, VOLUME)
         oldest_elem = q[0]
-        oldest_elem_time: datetime = oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
+        oldest_elem_time= oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
         seconds_till_now = (oldest_elem_time - self._market_open_time).total_seconds()
 
         if seconds_till_now > 2 * 60 * 60:
@@ -298,7 +298,7 @@ class MainClass:
         return score
 
     def result_score(self, q: list) -> int:
-        q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
+        q_time= q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
         td = q_time - self._result_time
         return (0 <= td.total_seconds() < 10 * 60) * 2
 
