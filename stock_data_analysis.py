@@ -352,11 +352,11 @@ class MainClass:
 
 if __name__ == '__main__':
 
-    stat_file = "/Users/ashutosh.v/Development/market_analysis/crawed_data_output/crawled_data_output_stats.json"
+    stat_file = "../market_analysis_data/stock_stats/combined_stats.json"
     with open(stat_file) as handle:
         stats = json.load(handle)
 
-    summary_arr = csv_file_with_headers_to_json_arr("/Users/ashutosh.v/Development/market_analysis_data/summary.csv")
+    summary_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
     names = list(map(lambda j_elem: j_elem['file_name'], summary_arr))
 
     def get_median(symbol):
@@ -386,6 +386,6 @@ if __name__ == '__main__':
                 func(name)
         except:
             print("failed to process name: "+name)
-    with open("/Users/ashutosh.v/Development/market_analysis_data/simulation_result.json", 'w') as handle:
+    with open("../market_analysis_data/simulation_result.json", 'w') as handle:
         json.dump(results, handle, indent=2)
 
