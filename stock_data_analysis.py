@@ -378,11 +378,14 @@ if __name__ == '__main__':
 
     for name in names:
         try:
-            TIMESTAMP = "timestamp"
-            func(name)
+            try:
+                TIMESTAMP = "timestamp"
+                func(name)
+            except:
+                TIMESTAMP = "0.timestamp"
+                func(name)
         except:
-            TIMESTAMP = "0.timestamp"
-            func(name)
+            print("failed to process name: "+name)
     with open("/Users/ashutosh.v/Development/market_analysis_data/simulation_result.json", 'w') as handle:
         json.dump(results, handle, indent=2)
 
