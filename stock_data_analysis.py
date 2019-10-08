@@ -56,7 +56,7 @@ class CountBasedEventWindow:
 
 class MarketEventEmitter:
     def __init__(self, file_name='spicejet.csv'):
-        base_path = '/Users/ashutosh.v/Development/market_analysis_data/csv_files/'
+        base_path = '../market_analysis_data/csv_files/'
 
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
@@ -376,7 +376,7 @@ if __name__ == '__main__':
         result['file_name'] = file_name
         results.append(result)
 
-    for name in names:
+    for name in names[:1]:
         try:
             try:
                 TIMESTAMP = "timestamp"
@@ -384,8 +384,8 @@ if __name__ == '__main__':
             except:
                 TIMESTAMP = "0.timestamp"
                 func(name)
-        except:
-            print("failed to process name: "+name)
+        except Exception as e:
+            print("failed to process name: "+name+ str(e))
     with open("../market_analysis_data/simulation_result.json", 'w') as handle:
         json.dump(results, handle, indent=2)
 
