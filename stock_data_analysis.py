@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from enum import Enum
 from queue import Queue
@@ -71,18 +72,24 @@ class MarketEventEmitter:
         return dict(map(lambda key: (key, j_elem.get(key)), keys_without_depth))
 
     def emit(self):
-        return next(self.__event_iter)
+        event = next(self.__event_iter)
+        event[LAST_PRICE] = float(event[LAST_PRICE])
+        event[BUY_QUANTITY] = float(event[BUY_QUANTITY])
+        event[SELL_QUANTITY] = float(event[SELL_QUANTITY])
+        event[VOLUME] = float(event[VOLUME])
+        return event
 
 
 class MarketChangeDetector:
     def __init__(self, event_emitter: MarketEventEmitter, window_len, base_filter_func, long_score_func_list: list,
-                 short_score_func_list: list, score_filter_func, post_processor_func):
+                 short_score_func_list: list, score_filter_func, execute_entry_func, execute_exit_func):
         self._event_emitter = event_emitter
         self._base_filter_func = base_filter_func
         self._long_score_func_list = long_score_func_list
         self._short_score_func_list = short_score_func_list
         self._score_filter_func = score_filter_func
-        self._post_processor_func = post_processor_func
+        self._execute_entry_func = execute_entry_func
+        self._execute_exit_func = execute_exit_func
 
         self._string_date_key = TIMESTAMP
 
@@ -96,46 +103,56 @@ class MarketChangeDetector:
                                                               keys_to_track=[self._filter_pass_key_name],
                                                               string_date_key=self._string_date_key)
 
+        self._took_position = False
+
     def run(self):
+        while True:
+            try:
+                market_event = self._event_emitter.emit()
+                if not self._took_position:
+                    self._try_take_position(market_event)
+                else:
+                    if self._execute_exit_func(market_event[LAST_PRICE]):
+                        # print("Done for today. Have booked millions of $$$. Enjoy brother")
+                        break
+
+            except StopIteration as e:
+                print(e)
+                # print("Out of events to emit. Market closes. Go smoke all that money")
+                break
+
+    def _try_take_position(self, market_event):
         def set_flag_with_base_filter_func():
             if self._base_filter_func(current_event_list_view):
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             else:
                 self._filter_pass_queue.move(self.get_filter_event(market_event, False))
 
-        while True:
-            try:
-                market_event = self._event_emitter.emit()
-                self._event_window_15_sec.move(market_event)
-                current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
+        self._event_window_15_sec.move(market_event)
+        current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
+        if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
+            if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
+                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
+                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
+                x = 0
+            long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
+            short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
+            if self._score_filter_func(long_scores):
+                self._execute_entry_func(current_event_list_view, TransactionType.LONG)
+                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+                self._took_position = True
+            elif self._score_filter_func(short_scores):
+                self._execute_entry_func(current_event_list_view, TransactionType.SHORT)
+                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+                self._took_position = True
+            else:
+                set_flag_with_base_filter_func()
 
-                self.debug_point(current_event_list_view)
+        else:
+            set_flag_with_base_filter_func()
 
-                if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
-                    if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
-                            and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
-                        x = 0
-                    long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
-                    short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
-                    if self._score_filter_func(long_scores):
-                        self._post_processor_func(current_event_list_view, TransactionType.LONG)
-                        self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                    elif self._score_filter_func(short_scores):
-                        self._post_processor_func(current_event_list_view, TransactionType.SHORT)
-                        self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                    else:
-                        set_flag_with_base_filter_func()
-
-                else:
-                    set_flag_with_base_filter_func()
-
-            except StopIteration as e:
-                print(e)
-                print("Out of events to emit. Market closes. Go smoke all that money")
-                break
-
-    def debug_point(self, current_event_list_view):
+    @staticmethod
+    def debug_point(current_event_list_view):
         if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
                 and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
                 and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
@@ -227,23 +244,31 @@ class TransactionType(Enum):
 
 
 class MainClass:
-    def __init__(self, file_name, median, price_percentage_diff, result_date):
+    def __init__(self, file_name, median, price_percentage_diff, result_time: datetime):
         self._file_name = file_name
         self._median = median
         self._price_percentage_diff = price_percentage_diff
-        self._result_date = result_date
-        self._result_time = self.get_result_time()
+        self._result_time = result_time + timedelta(seconds=15)
         self._base_filter_volume_threshold = self.get_vol_threshold(median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
-        self._market_open_time = datetime.strptime(result_date + ' 09:15:00', '%Y-%m-%d %H:%M:%S')
-        print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
+        self._market_open_time = self._result_time.replace(hour=9, minute=15, second=0)
+        self._entry_price = None
+        self._exit_price = None
+        self._transaction_type: TransactionType = None
+
+        # print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
 
     def run(self):
         MarketChangeDetector(MarketEventEmitter(file_name=self._file_name), 15, self.base_filter,
                              [self.volume_score_function, self.long_price_quantity_score, self.result_score],
                              [self.volume_score_function, self.short_price_quantity_score, self.result_score],
-                             self.score_filter, self.post_processor).run()
+                             self.score_filter, self.entry_function, self.exit_function).run()
+        return {
+            'entry': self._entry_price,
+            'exit': self._exit_price,
+            'type': str(self._transaction_type)
+        }
 
     def base_filter(self, q: list) -> bool:
         start_end_vol_diff = self.start_end_diff(q, VOLUME)
@@ -252,20 +277,12 @@ class MainClass:
         seconds_till_now = (oldest_elem_time - self._market_open_time).total_seconds()
 
         if seconds_till_now > 2 * 60 * 60:
-            moving_vol_threshold = self.get_vol_threshold(float(oldest_elem[VOLUME]), seconds_till_now)
+            moving_vol_threshold = self.get_vol_threshold(oldest_elem[VOLUME], seconds_till_now)
             if moving_vol_threshold > self._base_filter_volume_threshold:
                 self._base_filter_volume_threshold = moving_vol_threshold
                 self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
 
         return start_end_vol_diff > self._base_filter_volume_threshold
-
-    def get_result_time(self):
-        sym = self._file_name.replace(".csv", "")
-        j_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
-        time_elem = list(filter(lambda j_elem: j_elem['file_name'] == sym, j_arr))
-        if len(time_elem) != 1:
-            raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
-        return datetime.strptime(time_elem[0]['time_value'], '%H:%M:%S')
 
     @staticmethod
     def get_vol_threshold(vol_till_now, seconds_till_now):
@@ -276,15 +293,13 @@ class MainClass:
     def volume_score_function(self, q: list) -> int:
         score = 0
         for i in range(1, 5):
-            score = score + 1 if float(q[-i][VOLUME]) - float(
-                q[-i - 1][VOLUME]) > self._vol_diff_threshold_at_second_level \
+            score = score + 1 if q[-i][VOLUME] - q[-i - 1][VOLUME] > self._vol_diff_threshold_at_second_level \
                 else score
         return score
 
     def result_score(self, q: list) -> int:
         q_time: datetime = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
-        new_date = self._result_time.replace(year=q_time.year, month=q_time.month, day=q_time.day) + timedelta(seconds=15)
-        td = q_time - new_date
+        td = q_time - self._result_time
         return (0 <= td.total_seconds() < 10 * 60) * 2
 
     def long_price_quantity_score(self, q: list) -> int:
@@ -310,29 +325,64 @@ class MainClass:
         return score
 
     def price_diff_threshold_breached(self, price_diff, q):
-        return abs(price_diff) > (self._price_percentage_diff * float(q[0][LAST_PRICE])) / 100
+        return abs(price_diff) > (self._price_percentage_diff * q[0][LAST_PRICE]) / 100
 
     @staticmethod
     def start_end_diff(q, key):
-        return float(q[-1][key]) - float(q[0][key])
+        return q[-1][key] - q[0][key]
 
     def score_filter(self, score_list: list) -> bool:
         return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
 
-    @staticmethod
-    def post_processor(q: list, type: TransactionType):
-        msg = "buy" if type == TransactionType.LONG else "sell"
-        print("{} stocks at : ".format(msg) + str(q[-1]))
+    def entry_function(self, q: list, transaction_type: TransactionType):
+        msg = "buy" if transaction_type == TransactionType.LONG else "sell"
+        self._entry_price = q[-1][LAST_PRICE]
+        self._transaction_type = transaction_type
+        # print("{} stocks at : ".format(msg) + str(q[-1]))
+
+    def exit_function(self, price) -> bool:
+        diff = abs(self._entry_price - price)
+        if diff > self._entry_price * 0.01:
+            self._exit_price = price
+            msg = "sell" if self._transaction_type == TransactionType.LONG else "buy"
+            # print("{} stocks at : ".format(msg) + str(price))
+            return True
+        return False
 
 
 if __name__ == '__main__':
 
-    def func():
-        MainClass('BRITANNIA.csv', 21349, 0.2, '2019-08-09').run()
+    stat_file = "/Users/ashutosh.v/Development/market_analysis/crawed_data_output/crawled_data_output_stats.json"
+    with open(stat_file) as handle:
+        stats = json.load(handle)
 
-    try:
-        func()
-    except:
-        TIMESTAMP = "timestamp"
-        func()
+    summary_arr = csv_file_with_headers_to_json_arr("/Users/ashutosh.v/Development/market_analysis_data/summary.csv")
+    names = list(map(lambda j_elem: j_elem['file_name'], summary_arr))
+
+    def get_median(symbol):
+        return list(filter(lambda j_elem: j_elem['stock_identifier'] == symbol, stats))[0]['volume_median']
+
+    def get_result_time(symbol):
+        time_elem = list(filter(lambda j_elem: j_elem['file_name'] == symbol, summary_arr))
+        if len(time_elem) != 1:
+            raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
+        return datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%Y-%m-%d %H:%M:%S')
+
+
+    results = []
+
+    def func(file_name):
+        result = MainClass(file_name + ".csv", get_median(file_name), 0.2, get_result_time(file_name)).run()
+        result['file_name'] = file_name
+        results.append(result)
+
+    for name in names:
+        try:
+            TIMESTAMP = "timestamp"
+            func(name)
+        except:
+            TIMESTAMP = "0.timestamp"
+            func(name)
+    with open("/Users/ashutosh.v/Development/market_analysis_data/simulation_result.json", 'w') as handle:
+        json.dump(results, handle, indent=2)
 
