@@ -110,7 +110,7 @@ class MarketChangeDetector:
                 if not self._took_position:
                     self._try_take_position(market_event)
                 else:
-                    if self._execute_exit_func(market_event[LAST_PRICE]):
+                    if self._execute_exit_func(market_event):
                         # print("Done for today. Have booked millions of $$$. Enjoy brother")
                         break
 
@@ -136,11 +136,11 @@ class MarketChangeDetector:
             long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
-                self._execute_entry_func(current_event_list_view, TransactionType.LONG)
+                self._execute_entry_func(market_event, TransactionType.LONG, long_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
                 self._took_position = True
             elif self._score_filter_func(short_scores):
-                self._execute_entry_func(current_event_list_view, TransactionType.SHORT)
+                self._execute_entry_func(market_event, TransactionType.SHORT, short_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
                 self._took_position = True
             else:
@@ -252,8 +252,9 @@ class MainClass:
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
         self._market_open_time = self._result_time.replace(hour=9, minute=15, second=0)
-        self._entry_price = None
-        self._exit_price = None
+        self._entry_score = None
+        self._entry_event = None
+        self._exit_event = None
         self._transaction_type = None
 
         # print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
@@ -264,8 +265,9 @@ class MainClass:
                              [self.volume_score_function, self.short_price_quantity_score, self.result_score],
                              self.score_filter, self.entry_function, self.exit_function).run()
         return {
-            'entry': self._entry_price,
-            'exit': self._exit_price,
+            'entry': self._entry_event,
+            'exit': self._exit_event,
+            'score': self._entry_score,
             'type': str(self._transaction_type)
         }
 
@@ -333,16 +335,17 @@ class MainClass:
     def score_filter(self, score_list: list) -> bool:
         return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
 
-    def entry_function(self, q: list, transaction_type: TransactionType):
+    def entry_function(self, market_event, transaction_type: TransactionType, scores: list):
         msg = "buy" if transaction_type == TransactionType.LONG else "sell"
-        self._entry_price = q[-1][LAST_PRICE]
+        self._entry_event = market_event
+        self._entry_score = scores
         self._transaction_type = transaction_type
         # print("{} stocks at : ".format(msg) + str(q[-1]))
 
-    def exit_function(self, price) -> bool:
-        diff = abs(self._entry_price - price)
-        if diff > self._entry_price * 0.01:
-            self._exit_price = price
+    def exit_function(self, market_event) -> bool:
+        diff = abs(self._entry_event[LAST_PRICE] - market_event[LAST_PRICE])
+        if diff > self._entry_event[LAST_PRICE] * 0.01:
+            self._exit_event = market_event
             msg = "sell" if self._transaction_type == TransactionType.LONG else "buy"
             # print("{} stocks at : ".format(msg) + str(price))
             return True
@@ -387,11 +390,11 @@ if __name__ == '__main__':
             except:
                 func(name, "0.timestamp")
         except Exception as e:
-            print("failed to process name: " + name + str(e))
+            raise e
 
     json_file_path = "../market_analysis_data/simulation_result.json"
     csv_file_path = "../market_analysis_data/simulation_result.csv"
     with open(json_file_path, 'w') as handle:
         json.dump(results, handle, indent=2)
-
-    json_file_to_csv(json_file_path, csv_file_path)
+    #
+    # json_file_to_csv(json_file_path, csv_file_path)
