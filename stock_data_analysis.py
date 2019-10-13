@@ -60,7 +60,7 @@ class MarketEventEmitter:
         self.__event_list = list(
             map(lambda j_elem: self.__remove_keys(j_elem,
                                                   ['depth', 'Unnamed', 'instrument_token', 'mode', 'ohlc', 'oi_day',
-                                                   'tradable']), j_arr))
+                                                   'tradable','delta','average_price','oi','change']), j_arr))
         self.__event_iter = iter(self.__event_list)
 
     @staticmethod
@@ -246,7 +246,7 @@ class MainClass:
         self._file_name = file_name
         self._median = median
         self._price_percentage_diff = price_percentage_diff
-        self._result_time = result_time + timedelta(seconds=15)
+        self._result_time = result_time + timedelta(seconds=10) #for changing the time to react from result announcement
         self._string_date_key = string_date_key
         self._base_filter_volume_threshold = self.get_vol_threshold(median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
