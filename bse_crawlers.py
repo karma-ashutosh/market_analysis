@@ -9,6 +9,7 @@ from dateparser import parse
 from general_util import csv_file_with_headers_to_json_arr
 # todo https://urllib3.readthedocs.io/en/latest/user-guide.html#ssl
 from postgres_io import PostgresIO
+from statistics import mean, median
 
 http = urllib3.PoolManager()
 
@@ -101,11 +102,37 @@ class HistoricalStockPriceParser:
         script_ids_to_process = list(map(lambda sym: symbol_to_bse_script_id_mapping.get(sym), symbols_to_process))
         failed_indexes = list(
             filter(lambda index: script_ids_to_process[index] is None, range(len(script_ids_to_process))))
+
+        generated_file_names = []
         for index in range(len(script_ids_to_process)):
             if index not in failed_indexes:
                 result_arr = self.parse(script_ids_to_process[index])
-                with open("crawed_data_output/{}.json".format(symbols_to_process[index]), 'w') as handle:
+                f_name = symbols_to_process[index]
+                generated_file_names.append(f_name)
+                with open("crawled_data_output/{}.json".format(f_name), 'w') as handle:
                     json.dump(result_arr, handle, indent=2)
+
+        stat_list = []
+        for f_name in generated_file_names:
+            path = "crawled_data_output/{}.json".format(f_name)
+            with open(path) as handle:
+                j = json.load(handle)
+            stats = {}
+            stats.update(_get_stats("trades", [float(elem["No. of Trades"].replace(",", "")) for elem in j]))
+            stats.update(_get_stats("volume", [float(elem["No. of Shares"].replace(",", "")) for elem in j]))
+            stats.update(_get_stats("close", [float(elem["Close"].replace(",", "")) for elem in j]))
+            stat_list.append(stats)
+        with open("crawled_data_output/crawled_data_stats.json", 'w') as handle:
+            json.dump(stat_list, handle, indent=2)
+
+
+def _get_stats(stat_identifier_prefix: str, data_points: list):
+    return {
+        stat_identifier_prefix + "_min": min(data_points),
+        stat_identifier_prefix + "_max": max(data_points),
+        stat_identifier_prefix + "_mean": mean(data_points),
+        stat_identifier_prefix + "_median": median(data_points)
+    }
 
 
 if __name__ == '__main__':
