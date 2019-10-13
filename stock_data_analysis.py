@@ -256,6 +256,8 @@ class MainClass:
         self._entry_event = None
         self._exit_event = None
         self._transaction_type = None
+        self._profit_limit = 0.01
+        self._loss_limit = 0.01
 
         # print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
 
@@ -342,14 +344,25 @@ class MainClass:
         self._transaction_type = transaction_type
         # print("{} stocks at : ".format(msg) + str(q[-1]))
 
+    def _is_profit(self, diff):
+        return (self._transaction_type == TransactionType.LONG and diff > 0) \
+               or (self._transaction_type == TransactionType.SHORT and diff < 0)
+
     def exit_function(self, market_event) -> bool:
-        diff = abs(self._entry_event[LAST_PRICE] - market_event[LAST_PRICE])
-        if diff > self._entry_event[LAST_PRICE] * 0.01:
-            self._exit_event = market_event
-            msg = "sell" if self._transaction_type == TransactionType.LONG else "buy"
-            # print("{} stocks at : ".format(msg) + str(price))
-            return True
-        return False
+        diff = self._entry_event[LAST_PRICE] - market_event[LAST_PRICE]
+        abs_change = abs(diff)
+        if self._is_profit(diff):
+            if abs_change > self._entry_event[LAST_PRICE] * self._profit_limit:
+                self._exit_event = market_event
+                return True
+            else:
+                return False
+        else:
+            if abs_change > self._entry_event[LAST_PRICE] * self._loss_limit:
+                self._exit_event = market_event
+                return True
+            else:
+                return False
 
 
 if __name__ == '__main__':
