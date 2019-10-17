@@ -38,8 +38,16 @@ def extract_jarr_from_file(file_path: str):
 if __name__ == '__main__':
     with open('./config.yml') as handle:
         config = yaml.load(handle)
+    bse_config = config['bse_config']
     postgres = PostgresIO(config['postgres-config'])
     postgres.connect()
     j_arr = extract_jarr_from_file('text_files/result_dates.txt')
-    postgres.insert_or_skip_on_conflict(j_arr, config['bse_config']['upcoming_result_table'],
+
+    filtered_stock_list = set(map(lambda j_elem: j_elem['security_code'], postgres.execute(
+        ["SELECT security_code from {}".format(bse_config['filtered_stock_list_table'])],
+        fetch_result=True)['result']))
+
+    target_j_arr = list(filter(lambda j_elem: j_elem['security_code'] in filtered_stock_list, j_arr))
+    print("{} stocks qualified for result tracking out of {} stocks provided".format(len(target_j_arr), len(j_arr)))
+    postgres.insert_or_skip_on_conflict(target_j_arr, bse_config['upcoming_result_table'],
                                         ['security_code', 'result_date'])
