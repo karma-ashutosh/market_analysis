@@ -2,6 +2,9 @@ import json
 import requests
 
 from datetime import datetime, timedelta
+
+import yaml
+
 from postgres_io import PostgresIO
 from general_util import csv_file_with_headers_to_json_arr
 
@@ -25,12 +28,16 @@ class BseUtil:
         return result
 
     def get_results_announced_for_today(self):
-        today = datetime.now()
-        today_date = '{}-{}-{}'.format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
-        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'"\
+        today_date = self.__today_bse_date()
+        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'" \
             .format(self.__upcoming_results_date_table, today_date)
         result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
         return result_list
+
+    @staticmethod
+    def __today_bse_date():
+        today = datetime.now()
+        return '{}-{}-{}'.format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
 
     def should_process_historical_event(self, stock_code: str, event_time: datetime) -> bool:
         result = False
@@ -39,6 +46,26 @@ class BseUtil:
             j_elem = self.__stock_date_wise_monitoring_time_window.get(key)
             if j_elem['start_time'] <= event_time <= j_elem['end_time']:
                 result = True
+        return result
+
+    """
+strCat: Board Meeting
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+"""
+
+    def get_all_result_and_board_meeting_announcements_for_today(self):
+        today = self.__today_bse_date()
+        url_format = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat={}&strPrevDate={}&strScrip=&" \
+                     "strSearch=P&strToDate={}&strType=C"
+        result_url = url_format.format("Result", today, today)
+        board_meeting_url = url_format.format("Board Meeting", today, today)
+        result = []
+        result.extend(requests.get(result_url).json()['Table'])
+        result.extend(requests.get(board_meeting_url).json()['Table'])
         return result
 
 
@@ -52,3 +79,11 @@ def get_announcement_for_stock_for_date_range(stock_code, from_date, to_date) ->
     if json_res.get('Table'):
         result = json_res.get('Table')
     return result
+
+
+if __name__ == '__main__':
+    with open("config.yml") as handle:
+        c = yaml.load(handle)
+    bse = BseUtil(c, PostgresIO(c['postgres-config']))
+    r = bse.get_all_result_and_board_meeting_announcements_for_today()
+    x = ""

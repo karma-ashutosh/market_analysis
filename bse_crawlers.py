@@ -114,25 +114,33 @@ class HistoricalStockPriceParser:
 
         stat_list = []
         for f_name in generated_file_names:
-            path = "crawled_data_output/{}.json".format(f_name)
-            with open(path) as handle:
-                j = json.load(handle)
-            stats = {}
-            stats.update(_get_stats("trades", [float(elem["No. of Trades"].replace(",", "")) for elem in j]))
-            stats.update(_get_stats("volume", [float(elem["No. of Shares"].replace(",", "")) for elem in j]))
-            stats.update(_get_stats("close", [float(elem["Close"].replace(",", "")) for elem in j]))
-            stat_list.append(stats)
+            try:
+                path = "crawled_data_output/{}.json".format(f_name)
+                with open(path) as handle:
+                    j = json.load(handle)
+                stats = {
+                    'name': f_name
+                }
+                stats.update(_get_stats("trades", [float(elem["No. of Trades"].replace(",", "")) for elem in j]))
+                stats.update(_get_stats("volume", [float(elem["No. of Shares"].replace(",", "")) for elem in j]))
+                stats.update(_get_stats("close", [float(elem["Close"].replace(",", "")) for elem in j]))
+                stat_list.append(stats)
+            except:
+                print("failed for f_name: {}".format(f_name))
         with open("crawled_data_output/crawled_data_stats.json", 'w') as handle:
             json.dump(stat_list, handle, indent=2)
 
 
 def _get_stats(stat_identifier_prefix: str, data_points: list):
-    return {
-        stat_identifier_prefix + "_min": min(data_points),
-        stat_identifier_prefix + "_max": max(data_points),
-        stat_identifier_prefix + "_mean": mean(data_points),
-        stat_identifier_prefix + "_median": median(data_points)
-    }
+    if data_points:
+        return {
+            stat_identifier_prefix + "_min": min(data_points),
+            stat_identifier_prefix + "_max": max(data_points),
+            stat_identifier_prefix + "_mean": mean(data_points),
+            stat_identifier_prefix + "_median": median(data_points)
+        }
+    else:
+        return {}
 
 
 if __name__ == '__main__':

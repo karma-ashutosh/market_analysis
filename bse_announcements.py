@@ -57,8 +57,8 @@ def get_todays_annoucement_for_stock(stock_code) -> list:
     annoucement_url_format = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate={" \
                              "}&strScrip={}&strSearch=P&strToDate={}&strType=C "
     # date format -> 20190710 == 10th July, 2019
-    url_date= "{}{}{}".format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
-    url = annoucement_url_format.format(url_date, stock_code, url_date)
+    # url_date = "{}{}{}".format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
+    url = annoucement_url_format.format("20191010", stock_code, "20190810")
     r = requests.get(url)
     json_res = json.loads(r.text)
     d = {}
@@ -137,7 +137,40 @@ def send_notification_for_announcements(security_name: str, unprocessed_announce
 
 
 if __name__ == '__main__':
-    # process_new_bse_updates_for_stocks_having_result_for_today()
+    """
+    
+board meeting
+
+
+strCat: Board Meeting
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+
+
+Result:
+
+strCat: Result
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+
+
+
+All
+strCat: -1
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+    """
+    """https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate=20191011&strScrip=&strSearch=P&strToDate=20191011&strType=C"""
+    process_new_bse_updates_for_stocks_having_result_for_today()
     while True:
         try:
             today = datetime.now()
