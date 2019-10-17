@@ -13,6 +13,9 @@ msg_logger = setup_logger("msg_logger", "/tmp/app.log")
 
 def get_instruments_to_fetch():
     results_for_today = bse.get_results_announced_for_today()
+    results_for_yesterday = bse.get_results_announced_for_yesterday()
+    results_for_today.extend(results_for_yesterday)
+
     security_codes = list(map(lambda j: j['security_code'], results_for_today))
     instrument_mapping = k_util.map_bse_code_to_instrument_id(security_codes)
     return [int(v) for v in instrument_mapping.values()]
@@ -28,8 +31,9 @@ if __name__ == '__main__':
     k_util = KiteUtil(postgres, config)
 
     session_info = k_util.get_current_session_info()['result'][0]
-    kws = KiteTicker(session_info['api_key'], session_info['access_token'])
     instruments = get_instruments_to_fetch()
+
+    kws = KiteTicker(session_info['api_key'], session_info['access_token'])
 
 
     def on_ticks(ws, ticks):

@@ -32,6 +32,14 @@ class BseUtil:
         result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
         return result_list
 
+    def get_results_announced_for_yesterday(self):
+        yesterday = datetime.now() - timedelta(days=1)
+        yesterday_date = '{}-{}-{}'.format(str(yesterday.year).zfill(4), str(yesterday.month).zfill(2), str(yesterday.day).zfill(2))
+        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'"\
+            .format(self.__upcoming_results_date_table, yesterday_date)
+        result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
+        return result_list
+
     def should_process_historical_event(self, stock_code: str, event_time: datetime) -> bool:
         result = False
         key = "{}-{}".format(stock_code, event_time.date())

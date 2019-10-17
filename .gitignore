@@ -6,3 +6,4 @@ text_files/*
 bse_notifications/*
 crawed_data_output*
 venv/*
+crawled_data_output/*

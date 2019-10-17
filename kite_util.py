@@ -59,5 +59,5 @@ if __name__ == '__main__':
     postgres = PostgresIO(config['postgres-config'])
     postgres.connect()
     k = KiteUtil(postgres, config)
-    k.map_instrument_ids_to_trading_symbol()
+    k.update_token()
 
