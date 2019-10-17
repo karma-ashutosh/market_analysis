@@ -7,7 +7,7 @@ from bse_util import BseUtil
 from general_util import setup_logger
 from postgres_io import PostgresIO
 
-stock_logger = setup_logger("stock_logger", "./kite_websocket_data/stock.log", msg_only=True)
+stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 msg_logger = setup_logger("msg_logger", "/tmp/app.log")
 
 
