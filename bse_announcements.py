@@ -17,7 +17,7 @@ with open('./config.yml') as handle:
 postgres = PostgresIO(config['postgres-config'])
 postgres.connect()
 
-upcoming_results_date_table = config['bse_send_result_notification']['upcoming_result_table']
+
 bse_notification_checkpointing_table = config['bse_send_result_notification']['checkpointing_table']
 mail_username = config['email-config']['username']
 mail_password = config['email-config']['password']

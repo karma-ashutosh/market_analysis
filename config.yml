@@ -11,11 +11,10 @@ postgres-config:
   user: postgres
   password: postgrespassword
   db_ip: market-poc-alpha-1.ctay8oofrwrd.ap-south-1.rds.amazonaws.com
+#  db_ip: market-poc-alpha-2.cc9kvgcpuesr.ap-south-1.rds.amazonaws.com
   port: 5432
   database: postgres
   twitter.feed.table: data_stream.twitter_feeds
-  news.feed.table: data_stream.news_feeds
-  twitter.metadata.table: data_stream.twitter_metadata
   comany_list_table: data_stream.handles_to_track
 
 twitter-config:
@@ -29,13 +28,13 @@ alphavantage-config:
   upcoming.results.table: share_market_data.upcoming_results
   share.price.table: share_market_data.alphavantage_data_points
 
-nse_tools_config:
-  nse_tools_upcoming_result_table: nsetools.result_dates
+bse_config:
+  upcoming_result_table: bse.result_dates
   nse_tools_result_table: nsetools.stock_price
 
 bse_send_result_notification:
-  checkpointing_table: share_market_data.processed_bse_news
-  upcoming_result_table: nsetools.result_dates
+  checkpointing_table: bse.processed_bse_news
+  upcoming_result_table: bse.result_dates
   historical_result_time_info_file: text_files/historical_bse_result_times.csv
 
 kite_config:

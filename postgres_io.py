@@ -4,6 +4,8 @@ import traceback
 import yaml
 from psycopg2 import extras
 
+from general_util import chunks
+
 
 class PostgresIO(object):
     def __init__(self, config=None):
@@ -96,3 +98,35 @@ class PostgresIO(object):
             query_list.append(statement)
         return self.execute(query_list, fetch_result=False)
 
+
+class PostgresDataMigration:
+    def __init__(self):
+        self._new_postgres = self._get_new_postgres()
+        self._old_postgres = self._get_old_postgres()
+
+    def migrate_data(self, old_table_name, new_table_name):
+        data = self._old_postgres.execute(["SELECT * FROM {}".format(old_table_name)], fetch_result=True)['result']
+        print("data len is {}".format(len(data)))
+        data_chunks = chunks(data, len(data) / 1000)
+        print("number of chunks are: {}".format(len(data_chunks)))
+
+        for i in range(len(data_chunks)):
+            print("Inserting chunk index: {}".format(i))
+            self._new_postgres.insert_jarr(data_chunks[i], new_table_name)
+
+    @staticmethod
+    def _get_old_postgres():
+        with open("config.yml") as handle:
+            old_conf = yaml.load(handle)['postgres-config']
+        postgres = PostgresIO(old_conf)
+        postgres.connect()
+        return postgres
+
+    @staticmethod
+    def _get_new_postgres():
+        with open("config.yml") as handle:
+            new_conf = yaml.load(handle)['postgres-config']
+        new_conf['db_ip'] = 'market-poc-alpha-2.cc9kvgcpuesr.ap-south-1.rds.amazonaws.com'
+        postgres = PostgresIO(new_conf)
+        postgres.connect()
+        return postgres
