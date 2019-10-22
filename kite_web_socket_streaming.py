@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 import yaml
 from kiteconnect import KiteTicker
+from kiteconnect import KiteConnect
 from kite_util import KiteUtil
 from bse_util import BseUtil
 from general_util import setup_logger
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     instruments = get_instruments_to_fetch()
 
     kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+    kite = KiteConnect(session_info['api_key'], session_info['access_token'])
 
 
     def on_ticks(ws, ticks):
