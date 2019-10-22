@@ -137,7 +137,40 @@ def send_notification_for_announcements(security_name: str, unprocessed_announce
 
 
 if __name__ == '__main__':
-    # process_new_bse_updates_for_stocks_having_result_for_today()
+    """
+    
+board meeting
+
+
+strCat: Board Meeting
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+
+
+Result:
+
+strCat: Result
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+
+
+
+All
+strCat: -1
+strPrevDate: 20191011
+strScrip: 
+strSearch: P
+strToDate: 20191011
+strType: C
+    """
+    """https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate=20191011&strScrip=&strSearch=P&strToDate=20191011&strType=C"""
+    process_new_bse_updates_for_stocks_having_result_for_today()
     while True:
         try:
             today = datetime.now()

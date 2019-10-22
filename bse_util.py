@@ -1,9 +1,18 @@
 import json
-import requests
+from datetime import datetime
+from datetime import timedelta
+# todo https://urllib3.readthedocs.io/en/latest/user-guide.html#ssl
+from statistics import mean, median
+from time import sleep
 
-from datetime import datetime, timedelta
-from postgres_io import PostgresIO
+import requests
+import yaml
+from bs4 import BeautifulSoup
+from dateparser import parse
+
 from general_util import csv_file_with_headers_to_json_arr
+from postgres_io import PostgresIO
+from result_date_object import ResultDate
 
 
 class BseUtil:
@@ -60,3 +69,232 @@ def get_announcement_for_stock_for_date_range(stock_code, from_date, to_date) ->
     if json_res.get('Table'):
         result = json_res.get('Table')
     return result
+
+
+class BseResultUpdateUtil:
+    def __init__(self):
+        with open('./config.yml') as handle:
+            config = yaml.load(handle)
+        self.bse_config = config['bse_config']
+        self.postgres = PostgresIO(config['postgres-config'])
+        self.postgres.connect()
+
+    def run(self):
+        j_arr = self.extract_jarr_from_file('text_files/result_dates.txt')
+
+        filtered_stock_list = set(map(lambda j_elem: j_elem['security_code'], self.postgres.execute(
+            ["SELECT security_code from {}".format(self.bse_config['filtered_stock_list_table'])],
+            fetch_result=True)['result']))
+
+        target_j_arr = list(filter(lambda j_elem: j_elem['security_code'] in filtered_stock_list, j_arr))
+        print("{} stocks qualified for result tracking out of {} stocks provided".format(len(target_j_arr), len(j_arr)))
+        self.postgres.insert_or_skip_on_conflict(target_j_arr, self.bse_config['upcoming_result_table'],
+                                            ['security_code', 'result_date'])
+
+    @staticmethod
+    def get_human_readable_date(date: str) -> str:
+        return datetime.strptime(date, '%d %B %Y').strftime('%Y-%m-%d')
+
+    @staticmethod
+    def format_date_for_code(nse_date_string: str) -> str:
+        return nse_date_string.replace('Apr', 'April').replace('Jun', 'June').replace('Jul', 'July')\
+            .replace('Aug', 'August').replace('Oct', 'October')
+
+    def get_insert_json(self, line: str) -> dict:
+        print("parsing")
+        arr = line.split("\t")
+        security_code, security_name, result_date = arr[0], arr[1], self.format_date_for_code(arr[2])
+        return {
+            'security_code': security_code,
+            'security_name': security_name,
+            'result_date': result_date,
+            'pre_delta_days': 1,
+            'post_delta_days': 1,
+            'system_readable_date': self.get_human_readable_date(result_date)
+        }
+
+    def extract_jarr_from_file(self, file_path: str):
+        lines = map(lambda line: line.strip(), open(file_path).readlines())
+        j_arr = list(map(self.get_insert_json, lines))
+        return j_arr
+
+
+class HistoricalBseAnnouncements:
+    def __init__(self):
+        with open('./config.yml') as handle:
+            config = yaml.load(handle)
+        self.postgres = PostgresIO(config['postgres-config'])
+        self.postgres.connect()
+        self.bse = BseUtil(config, self.postgres)
+        self.upcoming_results_date_table = config['bse_send_result_notification']['upcoming_result_table']
+        self.bse_notification_checkpointing_table = config['bse_send_result_notification']['checkpointing_table']
+
+    def get_result_announcements_date_range(self, from_date, to_date):
+        query = [
+            "SELECT security_code, system_readable_date FROM {} WHERE system_readable_date >= '{}' and "
+            "system_readable_date <= '{}'".format(self.upcoming_results_date_table, from_date, to_date)]
+        rows = self.postgres.execute(query, fetch_result=True)['result']
+        announcement_list = []
+        for row in rows:
+            result_date = ResultDate(row)
+            announcement_date = result_date.system_readable_date.replace("-", "")
+            announcement = get_announcement_for_stock_for_date_range(result_date.security_code, announcement_date,
+                                                                     announcement_date)
+            if announcement:
+                announcement_list.append(announcement)
+        return announcement_list
+
+    def run(self):
+        from_date = input("Enter the from date (in format '2019-08-04'):\t")
+        to_date = input("Enter the to date (in format '2019-08-04'):\t")
+        output_location = input("output location to save your data (example /tmp/result.json): ")
+
+        announcement_list = self.get_result_announcements_date_range(from_date, to_date)
+        output = []
+        for announcement in announcement_list:
+            output.extend(announcement)
+        with open(output_location, 'w') as h:
+            json.dump(output, h, indent=1)
+
+
+@DeprecationWarning
+class UpComingResultCrawler:
+    def __init__(self):
+        raise Exception("The class is buggy and not tested. Fix this")
+
+    @staticmethod
+    def get_announcements_list() -> list:
+        announcement_page = "https://www.bseindia.com/corporates/Forth_Results.aspx?expandable=0"
+        r = requests.get(announcement_page)
+        soup = BeautifulSoup(r.text, "html.parser")
+        html_table = soup.find('table', attrs={'id': 'ctl00_ContentPlaceHolder1_gvData'})
+        table_rows = list(map(lambda x: x.findAll("td"), html_table.findAll("tr")))
+        visible_data = [[e.text for e in elements] for elements in table_rows][1:]  # ignoring the header column
+        return visible_data
+
+    @staticmethod
+    def days_to_seconds(number_of_days):
+        return number_of_days * 24 * 60 * 60
+
+    def parse_and_insert_data(self, postgres: PostgresIO):
+        parsed_data = self.get_announcements_list()
+        j_arr = []
+        for entry in filter(lambda x: len(x) is 3, parsed_data):
+            result_timestamp_seconds = parse(entry[2]).timestamp()
+            j_arr.append(
+                {
+                    'exchange': 'BSE',
+                    'security_code': entry[0],
+                    'symbol': entry[1],
+                    'result_date': entry[2],
+                    'hourly_crawling_start_timestamp': str(result_timestamp_seconds - self.days_to_seconds(7)),
+                    'hourly_crawling_stop_timestamp': str(result_timestamp_seconds),
+                    'minute_crawling_start_timestamp': str(result_timestamp_seconds),
+                    'minute_crawling_stop_timestamp': str(result_timestamp_seconds + self.days_to_seconds(2)),
+                    'crawling_done': 'false',
+                }
+            )
+        postgres.insert_or_skip_on_conflict(j_arr, 'share_market_data.upcoming_results', ['symbol', 'result_date'])
+
+    def run(self):
+        with open('./config.yml') as handle:
+            config = yaml.load(handle)
+        postgres = PostgresIO(config['postgres-config'])
+        postgres.connect()
+        while True:
+            self.parse_and_insert_data(postgres)
+            sleep(24 * 60 * 60)
+
+
+class HistoricalStockPriceParser:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def extract_all_values_in_order(row) -> list:
+        cells = row.findAll("td")
+        return [cell.text for cell in cells]
+
+    @staticmethod
+    def get_trading_sym_to_exchange_script_id_mapping():
+        instrument_mappings = csv_file_with_headers_to_json_arr("text_files/instruments.csv")
+        symbol_to_bse_script_id_mapping = {}
+        for j_elem in instrument_mappings:
+            if j_elem['exchange'] == 'BSE':
+                symbol_to_bse_script_id_mapping[j_elem['tradingsymbol']] = j_elem['exchange_token']
+        return symbol_to_bse_script_id_mapping
+
+    def parse(self, script_code):
+        url = "https://www.bseindia.com/markets/equity/EQReports/StockPrcHistori.aspx?expandable=6&scripcode={}" \
+              "&flag=sp&Submit=G".format(script_code)
+        r = requests.get(url)
+        soup = BeautifulSoup(r.text, "html.parser")
+        table = soup.findAll("table")[-2]
+        table_rows = table.findAll("tr")
+        header_row = table_rows[0]
+        column_names = self.extract_all_values_in_order(header_row)
+        data_rows = [self.extract_all_values_in_order(row) for row in table_rows[2:]]
+        result = [dict(zip(column_names, row_values)) for row_values in data_rows]
+        return result
+
+    def run(self):
+        symbols_to_process = [line.strip() for line in
+                              open('text_files/temporary_stock_symbols_to_process.txt').readlines()]
+
+        symbol_to_bse_script_id_mapping = self.get_trading_sym_to_exchange_script_id_mapping()
+        script_ids_to_process = list(map(lambda sym: symbol_to_bse_script_id_mapping.get(sym), symbols_to_process))
+        failed_indexes = list(
+            filter(lambda index: script_ids_to_process[index] is None, range(len(script_ids_to_process))))
+
+        generated_file_names = []
+        for index in range(len(script_ids_to_process)):
+            if index not in failed_indexes:
+                result_arr = self.parse(script_ids_to_process[index])
+                f_name = symbols_to_process[index]
+                generated_file_names.append(f_name)
+                with open("crawled_data_output/{}.json".format(f_name), 'w') as handle:
+                    json.dump(result_arr, handle, indent=2)
+
+        stat_list = []
+        for f_name in generated_file_names:
+            try:
+                path = "crawled_data_output/{}.json".format(f_name)
+                with open(path) as handle:
+                    j = json.load(handle)
+                stats = {
+                    'name': f_name
+                }
+                stats.update(_get_stats("trades", [float(elem["No. of Trades"].replace(",", "")) for elem in j]))
+                stats.update(_get_stats("volume", [float(elem["No. of Shares"].replace(",", "")) for elem in j]))
+                stats.update(_get_stats("close", [float(elem["Close"].replace(",", "")) for elem in j]))
+                stat_list.append(stats)
+            except:
+                print("failed for f_name: {}".format(f_name))
+        with open("crawled_data_output/crawled_data_stats.json", 'w') as handle:
+            json.dump(stat_list, handle, indent=2)
+
+
+def _get_stats(stat_identifier_prefix: str, data_points: list):
+    if data_points:
+        return {
+            stat_identifier_prefix + "_min": min(data_points),
+            stat_identifier_prefix + "_max": max(data_points),
+            stat_identifier_prefix + "_mean": mean(data_points),
+            stat_identifier_prefix + "_median": median(data_points)
+        }
+    else:
+        return {}
+
+
+if __name__ == '__main__':
+    choice = input("Select your choice. Type: (i) 1 for update upcoming result dates\n(ii) 2 for Getting bse "
+                   "annoucnements for a date range\n(iii) 3 for getting historical day wise stock prices for "
+                   "instruments under column exchange_token in file text_files/instruments.csv ")
+    if choice == "1":
+        BseResultUpdateUtil().run()
+    elif choice == 2:
+        HistoricalBseAnnouncements().run()
+    elif choice == 3:
+        HistoricalStockPriceParser().run()
+    else:
+        print("Choice didn't match any of the valid options. Please try again")
