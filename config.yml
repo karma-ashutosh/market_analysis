@@ -31,7 +31,8 @@ alphavantage-config:
 bse_config:
   upcoming_result_table: bse.result_dates
   filtered_stock_list_table: bse.filtered_stock_info
-  nse_tools_result_table: nsetools.stock_price
+  announcements_table: bse.bse_announcements
+
 
 bse_send_result_notification:
   checkpointing_table: bse.processed_bse_news

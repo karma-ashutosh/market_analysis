@@ -7,7 +7,7 @@ import yaml
 
 from general_util import run_in_background, setup_logger, send_mail
 from postgres_io import PostgresIO
-from bse_util import BseUtil
+from bse_util import BseUtil, get_bse_url_compatible_date
 
 logger = setup_logger("bse_logger", "./logs/log_bse_announcements.log")
 time_logger = setup_logger("time_logger", "./logs/time_logger.log")
@@ -17,11 +17,9 @@ with open('./config.yml') as handle:
 postgres = PostgresIO(config['postgres-config'])
 postgres.connect()
 
-
 bse_notification_checkpointing_table = config['bse_send_result_notification']['checkpointing_table']
 mail_username = config['email-config']['username']
 mail_password = config['email-config']['password']
-
 
 bse = BseUtil(config, postgres)
 
@@ -57,7 +55,7 @@ def get_todays_annoucement_for_stock(stock_code) -> list:
     annoucement_url_format = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate={" \
                              "}&strScrip={}&strSearch=P&strToDate={}&strType=C "
     # date format -> 20190710 == 10th July, 2019
-    url_date= "{}{}{}".format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
+    url_date = get_bse_url_compatible_date(today)
     url = annoucement_url_format.format(url_date, stock_code, url_date)
     r = requests.get(url)
     json_res = json.loads(r.text)
@@ -73,7 +71,7 @@ def get_todays_annoucement_for_stock(stock_code) -> list:
 
 def process_new_bse_updates_for_stocks_having_result_for_today():
     start_time = datetime.now()
-    results_to_be_processed = bse.get_results_announced_for_today()
+    results_to_be_processed = bse.get_result_announcement_meta_for_today()
     logger.info("results to be processed: {}".format(results_to_be_processed))
     processing_response = []
     for result in results_to_be_processed:
@@ -83,8 +81,9 @@ def process_new_bse_updates_for_stocks_having_result_for_today():
             logger.error(e)
     logger.info("Processing successful. Processed metadata is as:\t{}".format(json.dumps(processing_response)))
     end_time = datetime.now()
-    time_logger.info("Function: {}, start_time: {}, end_time: {}".format("process_new_bse_updates_for_stocks_having_result_for_today",
-                                                                         str(start_time), str(end_time)))
+    time_logger.info("Function: {}, start_time: {}, end_time: {}".format(
+        "process_new_bse_updates_for_stocks_having_result_for_today",
+        str(start_time), str(end_time)))
 
 
 def send_notification_if_new_bse_update_available(stock_metadata) -> dict:
@@ -102,8 +101,9 @@ def send_notification_if_new_bse_update_available(stock_metadata) -> dict:
         'news_ids': [announcement['NEWSID'] for announcement in unprocessed_announcements]
     }
     end_time = datetime.now()
-    time_logger.info("Function: {}, start_time: {}, end_time: {}".format("send_notification_if_new_bse_update_available",
-                                                                         str(start_time), str(end_time)))
+    time_logger.info(
+        "Function: {}, start_time: {}, end_time: {}".format("send_notification_if_new_bse_update_available",
+                                                            str(start_time), str(end_time)))
 
     return result
 
@@ -124,8 +124,8 @@ def fetch_new_announcements_from_bse(stock_code):
 def send_notification_for_announcements(security_name: str, unprocessed_announcements: list):
     start_time = datetime.now()
     file_path = "bse_notifications/{}-{}-{}-{}T{}:{}:{}.json".format(security_name,
-                                                                today.year, today.month, today.day,
-                                                                today.hour, today.minute, today.second)
+                                                                     today.year, today.month, today.day,
+                                                                     today.hour, today.minute, today.second)
     with open(file_path, 'w') as handle:
         json.dump(unprocessed_announcements, handle, indent=1)
     send_mail(mail_username, mail_password, "Notification for {}".format(security_name),
@@ -137,39 +137,6 @@ def send_notification_for_announcements(security_name: str, unprocessed_announce
 
 
 if __name__ == '__main__':
-    """
-    
-board meeting
-
-
-strCat: Board Meeting
-strPrevDate: 20191011
-strScrip: 
-strSearch: P
-strToDate: 20191011
-strType: C
-
-
-Result:
-
-strCat: Result
-strPrevDate: 20191011
-strScrip: 
-strSearch: P
-strToDate: 20191011
-strType: C
-
-
-
-All
-strCat: -1
-strPrevDate: 20191011
-strScrip: 
-strSearch: P
-strToDate: 20191011
-strType: C
-    """
-    """https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat=-1&strPrevDate=20191011&strScrip=&strSearch=P&strToDate=20191011&strType=C"""
     process_new_bse_updates_for_stocks_having_result_for_today()
     while True:
         try:

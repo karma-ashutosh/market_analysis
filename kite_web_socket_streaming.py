@@ -13,8 +13,8 @@ msg_logger = setup_logger("msg_logger", "/tmp/app.log")
 
 
 def get_instruments_to_fetch():
-    results_for_today = bse.get_results_announced_for_today()
-    results_for_yesterday = bse.get_results_announced_for_yesterday()
+    results_for_today = bse.get_result_announcement_meta_for_today()
+    results_for_yesterday = bse.get_result_announcement_meta_for_yesterday()
     results_for_today.extend(results_for_yesterday)
 
     security_codes = list(map(lambda j: j['security_code'], results_for_today))

@@ -15,6 +15,76 @@ from postgres_io import PostgresIO
 from result_date_object import ResultDate
 
 
+def get_bse_url_compatible_date(date_time_obj: datetime):
+    return "{}{}{}".format(str(date_time_obj.year).zfill(4), str(date_time_obj.month).zfill(2),
+                           str(date_time_obj.day).zfill(2))
+
+
+def get_system_readable_date(date_time_obj):
+    return '{}-{}-{}'.format(str(date_time_obj.year).zfill(4), str(date_time_obj.month).zfill(2),
+                             str(date_time_obj.day).zfill(2))
+
+
+class BseAnnouncementCrawler:
+    def __init__(self, postgres: PostgresIO, config: dict):
+        self._postgres = postgres
+        self._announcement_table = config['bse_config']['announcements_table']
+        self.system_readable_date_key = 'system_readable_date'
+        self._news_id_key = 'news_id'
+        self.keys_to_copy_in_table = [('NEWSID', self._news_id_key),
+                                      ('SCRIP_CD', 'security_code'),
+                                      ('NEWS_DT', 'news_datetime'),
+                                      ('ATTACHMENTNAME', 'attachment_name')]
+
+    def refresh(self):
+        today = datetime.today()
+        system_readable_date = get_system_readable_date(today)
+        all_announcements = self.get_todays_board_meeting_updates()
+        all_announcements.extend(self.get_todays_result_announcements_updates())
+        payload_arr = list(map(lambda j: self._get_payload_from_bse_data(j, system_readable_date), all_announcements))
+        already_captured_news_ids = self.__get_already_stored_news_ids(system_readable_date)
+        new_announcements = list(filter(lambda j: j[self._news_id_key] not in already_captured_news_ids, payload_arr))
+        self._save_to_database(new_announcements)
+
+    def _save_to_database(self, announcements):
+        self._postgres.insert_jarr(announcements, self._announcement_table)
+
+    def _get_payload_from_bse_data(self, j_elem, system_readable_date):
+        output = {}
+        for key in self.keys_to_copy_in_table:
+            output[key[1]] = j_elem[key[0]]
+        output[self.system_readable_date_key] = system_readable_date
+        return output
+
+    def __get_already_stored_news_ids(self, system_readable_date) -> set:
+        query = "SELECT {} FROM {} WHERE {}='{}'".format(
+            self._news_id_key,
+            self._announcement_table,
+            self.system_readable_date_key,
+            system_readable_date
+        )
+        already_captured_news_ids = set(map(
+            lambda j: j[self._news_id_key], self._postgres.execute([query], fetch_result=True)['result']
+        ))
+        return already_captured_news_ids
+
+    @staticmethod
+    def get_todays_board_meeting_updates() -> list:
+        today = datetime.today()
+        bse_compatible_date = get_bse_url_compatible_date(today)
+        url = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat={}&strPrevDate={}&strScrip=&strSearch=P" \
+              "&strToDate={}&strType=C".format("Board Meeting", bse_compatible_date, bse_compatible_date)
+        return requests.get(url).json()['Table']
+
+    @staticmethod
+    def get_todays_result_announcements_updates() -> list:
+        today = datetime.today()
+        bse_compatible_date = get_bse_url_compatible_date(today)
+        url = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat={}&strPrevDate={}&strScrip=&strSearch=P" \
+              "&strToDate={}&strType=C".format("Result", bse_compatible_date, bse_compatible_date)
+        return requests.get(url).json()['Table']
+
+
 class BseUtil:
     def __init__(self, config: dict, postgres: PostgresIO):
         self.__config = config
@@ -33,18 +103,18 @@ class BseUtil:
             result["{}-{}".format(j_elem.get("stock_symbol"), dt.date())] = j_elem
         return result
 
-    def get_results_announced_for_today(self):
+    def get_result_announcement_meta_for_today(self):
         today = datetime.now()
-        today_date = '{}-{}-{}'.format(str(today.year).zfill(4), str(today.month).zfill(2), str(today.day).zfill(2))
-        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'"\
+        today_date = get_system_readable_date(today)
+        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'" \
             .format(self.__upcoming_results_date_table, today_date)
         result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
         return result_list
 
-    def get_results_announced_for_yesterday(self):
+    def get_result_announcement_meta_for_yesterday(self):
         yesterday = datetime.now() - timedelta(days=1)
-        yesterday_date = '{}-{}-{}'.format(str(yesterday.year).zfill(4), str(yesterday.month).zfill(2), str(yesterday.day).zfill(2))
-        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'"\
+        yesterday_date = get_system_readable_date(yesterday)
+        upcoming_results_query = "SELECT * FROM {} WHERE system_readable_date='{}'" \
             .format(self.__upcoming_results_date_table, yesterday_date)
         result_list = self.__postgres.execute([upcoming_results_query], fetch_result=True).get('result', [])
         return result_list
@@ -89,7 +159,7 @@ class BseResultUpdateUtil:
         target_j_arr = list(filter(lambda j_elem: j_elem['security_code'] in filtered_stock_list, j_arr))
         print("{} stocks qualified for result tracking out of {} stocks provided".format(len(target_j_arr), len(j_arr)))
         self.postgres.insert_or_skip_on_conflict(target_j_arr, self.bse_config['upcoming_result_table'],
-                                            ['security_code', 'result_date'])
+                                                 ['security_code', 'result_date'])
 
     @staticmethod
     def get_human_readable_date(date: str) -> str:
@@ -97,7 +167,7 @@ class BseResultUpdateUtil:
 
     @staticmethod
     def format_date_for_code(nse_date_string: str) -> str:
-        return nse_date_string.replace('Apr', 'April').replace('Jun', 'June').replace('Jul', 'July')\
+        return nse_date_string.replace('Apr', 'April').replace('Jun', 'June').replace('Jul', 'July') \
             .replace('Aug', 'August').replace('Oct', 'October')
 
     def get_insert_json(self, line: str) -> dict:
@@ -120,12 +190,11 @@ class BseResultUpdateUtil:
 
 
 class HistoricalBseAnnouncements:
-    def __init__(self):
+    def __init__(self, postgres: PostgresIO, bse_util: BseUtil):
         with open('./config.yml') as handle:
             config = yaml.load(handle)
-        self.postgres = PostgresIO(config['postgres-config'])
-        self.postgres.connect()
-        self.bse = BseUtil(config, self.postgres)
+        self.postgres = postgres
+        self.bse = bse_util
         self.upcoming_results_date_table = config['bse_send_result_notification']['upcoming_result_table']
         self.bse_notification_checkpointing_table = config['bse_send_result_notification']['checkpointing_table']
 
@@ -270,7 +339,10 @@ class HistoricalStockPriceParser:
                 stat_list.append(stats)
             except:
                 print("failed for f_name: {}".format(f_name))
-        with open("crawled_data_output/crawled_data_stats.json", 'w') as handle:
+
+        output_file = "crawled_data_output/crawled_data_stats.json"
+        print("writing stats to file: {}".format(output_file))
+        with open(output_file, 'w') as handle:
             json.dump(stat_list, handle, indent=2)
 
 
@@ -290,10 +362,17 @@ if __name__ == '__main__':
     choice = input("Select your choice. Type: (i) 1 for update upcoming result dates\n(ii) 2 for Getting bse "
                    "annoucnements for a date range\n(iii) 3 for getting historical day wise stock prices for "
                    "instruments under column exchange_token in file text_files/instruments.csv ")
+
+    with open('./config.yml') as handle:
+        config = yaml.load(handle)
+    postgres = PostgresIO(config['postgres-config'])
+    postgres.connect()
+    bse = BseUtil(config, postgres)
+
     if choice == "1":
         BseResultUpdateUtil().run()
     elif choice == 2:
-        HistoricalBseAnnouncements().run()
+        HistoricalBseAnnouncements(postgres, bse).run()
     elif choice == 3:
         HistoricalStockPriceParser().run()
     else:

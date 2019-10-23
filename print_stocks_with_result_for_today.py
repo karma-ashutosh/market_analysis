@@ -7,7 +7,7 @@ from general_util import setup_logger
 from postgres_io import PostgresIO
 
 def get_instruments_to_fetch():
-    results_for_today = bse.get_results_announced_for_today()
+    results_for_today = bse.get_result_announcement_meta_for_today()
     return results_for_today 
 
 if __name__ == '__main__':
