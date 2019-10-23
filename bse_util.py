@@ -359,9 +359,10 @@ def _get_stats(stat_identifier_prefix: str, data_points: list):
 
 
 if __name__ == '__main__':
-    choice = input("Select your choice. Type: (i) 1 for update upcoming result dates\n(ii) 2 for Getting bse "
+    choice = int(input("Select your choice. Type: (i) 1 for update upcoming result dates\n(ii) 2 for Getting bse "
                    "annoucnements for a date range\n(iii) 3 for getting historical day wise stock prices for "
-                   "instruments under column exchange_token in file text_files/instruments.csv ")
+                   "instruments under column exchange_token in file text_files/instruments.csv\n(iv) 4 for updating "
+                   "new bse announcements in db\n"))
 
     with open('./config.yml') as handle:
         config = yaml.load(handle)
@@ -369,11 +370,13 @@ if __name__ == '__main__':
     postgres.connect()
     bse = BseUtil(config, postgres)
 
-    if choice == "1":
+    if choice == 1:
         BseResultUpdateUtil().run()
     elif choice == 2:
         HistoricalBseAnnouncements(postgres, bse).run()
     elif choice == 3:
         HistoricalStockPriceParser().run()
+    elif choice == 4:
+        BseAnnouncementCrawler(postgres, config).refresh()
     else:
         print("Choice didn't match any of the valid options. Please try again")
