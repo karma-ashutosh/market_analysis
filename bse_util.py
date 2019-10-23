@@ -25,42 +25,60 @@ def get_system_readable_date(date_time_obj):
                              str(date_time_obj.day).zfill(2))
 
 
+def system_readable_today():
+    today = datetime.today()
+    return get_system_readable_date(today)
+
+
 class BseAnnouncementCrawler:
     def __init__(self, postgres: PostgresIO, config: dict):
         self._postgres = postgres
         self._announcement_table = config['bse_config']['announcements_table']
-        self.system_readable_date_key = 'system_readable_date'
+        self._system_readable_date_key = 'system_readable_date'
         self._news_id_key = 'news_id'
-        self.keys_to_copy_in_table = [('NEWSID', self._news_id_key),
-                                      ('SCRIP_CD', 'security_code'),
-                                      ('NEWS_DT', 'news_datetime'),
-                                      ('ATTACHMENTNAME', 'attachment_name')]
+        self._keys_to_copy_in_table = [('NEWSID', self._news_id_key),
+                                       ('SCRIP_CD', 'security_code'),
+                                       ('NEWS_DT', 'news_datetime'),
+                                       ('ATTACHMENTNAME', 'attachment_name')]
 
     def refresh(self):
-        today = datetime.today()
-        system_readable_date = get_system_readable_date(today)
-        all_announcements = self.get_todays_board_meeting_updates()
-        all_announcements.extend(self.get_todays_result_announcements_updates())
+        system_readable_date = system_readable_today()
+        all_announcements = self._get_todays_board_meeting_updates()
+        all_announcements.extend(self._get_todays_result_announcements_updates())
         payload_arr = list(map(lambda j: self._get_payload_from_bse_data(j, system_readable_date), all_announcements))
         already_captured_news_ids = self.__get_already_stored_news_ids(system_readable_date)
         new_announcements = list(filter(lambda j: j[self._news_id_key] not in already_captured_news_ids, payload_arr))
         self._save_to_database(new_announcements)
+
+    def get_company_announcement_map_for_today(self) -> dict:
+        query = "SELECT * FROM {} WHERE {}='{}'".format(
+            self._announcement_table,
+            self._system_readable_date_key,
+            system_readable_today()
+        )
+        todays_captured_announcements = self._postgres.execute([query], fetch_result=True)['result']
+        result = {}
+        for j_elem in todays_captured_announcements:
+            key = j_elem['security_code']
+            if key not in result.keys() or result[key]['news_datetime'] < j_elem['news_datetime']:
+                result[key] = j_elem
+        return result
 
     def _save_to_database(self, announcements):
         self._postgres.insert_jarr(announcements, self._announcement_table)
 
     def _get_payload_from_bse_data(self, j_elem, system_readable_date):
         output = {}
-        for key in self.keys_to_copy_in_table:
+        for key in self._keys_to_copy_in_table:
             output[key[1]] = j_elem[key[0]]
-        output[self.system_readable_date_key] = system_readable_date
+        output[self._system_readable_date_key] = system_readable_date
         return output
 
     def __get_already_stored_news_ids(self, system_readable_date) -> set:
         query = "SELECT {} FROM {} WHERE {}='{}'".format(
             self._news_id_key,
             self._announcement_table,
-            self.system_readable_date_key,
+            self._system_readable_date_key,
             system_readable_date
         )
         already_captured_news_ids = set(map(
@@ -69,7 +87,7 @@ class BseAnnouncementCrawler:
         return already_captured_news_ids
 
     @staticmethod
-    def get_todays_board_meeting_updates() -> list:
+    def _get_todays_board_meeting_updates() -> list:
         today = datetime.today()
         bse_compatible_date = get_bse_url_compatible_date(today)
         url = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat={}&strPrevDate={}&strScrip=&strSearch=P" \
@@ -77,7 +95,7 @@ class BseAnnouncementCrawler:
         return requests.get(url).json()['Table']
 
     @staticmethod
-    def get_todays_result_announcements_updates() -> list:
+    def _get_todays_result_announcements_updates() -> list:
         today = datetime.today()
         bse_compatible_date = get_bse_url_compatible_date(today)
         url = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat={}&strPrevDate={}&strScrip=&strSearch=P" \
@@ -142,12 +160,9 @@ def get_announcement_for_stock_for_date_range(stock_code, from_date, to_date) ->
 
 
 class BseResultUpdateUtil:
-    def __init__(self):
-        with open('./config.yml') as handle:
-            config = yaml.load(handle)
+    def __init__(self, postgres: PostgresIO, config: dict):
         self.bse_config = config['bse_config']
-        self.postgres = PostgresIO(config['postgres-config'])
-        self.postgres.connect()
+        self.postgres = postgres
 
     def run(self):
         j_arr = self.extract_jarr_from_file('text_files/result_dates.txt')
@@ -190,11 +205,9 @@ class BseResultUpdateUtil:
 
 
 class HistoricalBseAnnouncements:
-    def __init__(self, postgres: PostgresIO, bse_util: BseUtil):
-        with open('./config.yml') as handle:
-            config = yaml.load(handle)
+    def __init__(self, postgres: PostgresIO, config: dict):
         self.postgres = postgres
-        self.bse = bse_util
+        self.bse = BseUtil(config, postgres)
         self.upcoming_results_date_table = config['bse_send_result_notification']['upcoming_result_table']
         self.bse_notification_checkpointing_table = config['bse_send_result_notification']['checkpointing_table']
 
@@ -359,24 +372,28 @@ def _get_stats(stat_identifier_prefix: str, data_points: list):
 
 
 if __name__ == '__main__':
-    choice = int(input("Select your choice. Type: (i) 1 for update upcoming result dates\n(ii) 2 for Getting bse "
-                   "annoucnements for a date range\n(iii) 3 for getting historical day wise stock prices for "
-                   "instruments under column exchange_token in file text_files/instruments.csv\n(iv) 4 for updating "
-                   "new bse announcements in db\n"))
+    choice = int(input("Select your choice. Type: "
+                       "(i) 1 for update upcoming result dates\n"
+                       "(ii) 2 for Getting bse annoucnements for a date range\n"
+                       "(iii) 3 for getting historical day wise stock prices for instruments under column "
+                       "exchange_token in file text_files/instruments.csv\n "
+                       "(iv) 4 for updating new bse announcements in db\n"
+                       "(v) 5 for getting company wise latest news\n"))
 
     with open('./config.yml') as handle:
         config = yaml.load(handle)
     postgres = PostgresIO(config['postgres-config'])
     postgres.connect()
-    bse = BseUtil(config, postgres)
 
     if choice == 1:
-        BseResultUpdateUtil().run()
+        BseResultUpdateUtil(postgres, config).run()
     elif choice == 2:
-        HistoricalBseAnnouncements(postgres, bse).run()
+        HistoricalBseAnnouncements(postgres, config).run()
     elif choice == 3:
         HistoricalStockPriceParser().run()
     elif choice == 4:
         BseAnnouncementCrawler(postgres, config).refresh()
+    elif choice == 5:
+        print(BseAnnouncementCrawler(postgres, config).get_company_announcement_map_for_today())
     else:
         print("Choice didn't match any of the valid options. Please try again")
