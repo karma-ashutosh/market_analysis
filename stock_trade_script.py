@@ -7,11 +7,13 @@ from queue import Queue
 import yaml
 from kiteconnect import KiteTicker
 
-from bse_util import BseUtil
+from bse_util import BseUtil, BseAnnouncementCrawler
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import setup_logger
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
+from stock_data_analysis import PerSecondLatestEventTracker, TransactionType
+
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 msg_logger = setup_logger("msg_logger", "/tmp/app.log")
@@ -103,83 +105,6 @@ class MarketChangeDetector:
             self._filter_pass_key_name: state
         }
         return filter_event
-
-
-class PerSecondLatestEventTracker:
-    DATETIME_OBJ = 'datetime'
-
-    def __init__(self, window_length_in_seconds: int, keys_to_track: list, string_date_key: str):
-        self.__window_length = window_length_in_seconds
-        self.__keys_to_track = keys_to_track
-        self.__string_date_key = string_date_key
-
-        self.__events = Queue(maxsize=window_length_in_seconds)
-        self._sum = [0] * len(keys_to_track)
-
-    def get_current_queue_snapshot(self) -> list:
-        return list(self.__events.queue)
-
-    def move(self, json_event: dict):
-        current_event = self.__get_marshaled_event(json_event)
-
-        queue_as_list = self.__events.queue
-        if len(queue_as_list) > 0:
-            last_element = queue_as_list[-1]
-            seconds_gap = self.__get_seconds_gap_from_last_received_event(last_element, current_event)
-            # print(seconds_gap, 'gap')
-
-            if seconds_gap < 1:
-                self.__overwrite_event(last_element, current_event)
-            else:
-                for i in range(seconds_gap - 1):
-                    self.__put(last_element)
-
-            self.__put(current_event)
-        else:
-            self.__put(current_event)
-
-    def __put(self, event):
-        if self.__events.qsize() == self.__events.maxsize:
-            self.__events.get_nowait()
-        self.__events.put_nowait(event)
-
-    @staticmethod
-    def __get_seconds_gap_from_last_received_event(last_element, marshaled_event):
-        last_dt = last_element[PerSecondLatestEventTracker.DATETIME_OBJ]
-        curr_dt = marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ]
-        td = curr_dt - last_dt
-        seconds_gap = int(td.total_seconds())
-        return seconds_gap
-
-    def __overwrite_event(self, target, source):
-        # print(self.__keys_to_track)
-        for key in self.__keys_to_track:
-            # print(key)
-            target[key] = source.get(key)
-
-    @staticmethod
-    def __round_seconds(date_time_object):
-        new_date_time = date_time_object
-
-        if new_date_time.microsecond >= 500000:
-            new_date_time = new_date_time + timedelta(seconds=1)
-
-        return new_date_time.replace(microsecond=0)
-
-    def __get_marshaled_event(self, json_event):
-        marshaled_event = {}
-        self.__overwrite_event(marshaled_event, json_event)
-
-        current_event_time = json_event[self.__string_date_key]
-        dt = datetime.strptime(current_event_time, '%Y-%m-%d %H:%M:%S')
-        marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ] = self.__round_seconds(dt)
-
-        return marshaled_event
-
-
-class TransactionType(Enum):
-    SHORT = 1
-    LONG = 2
 
 
 class MainClass:
@@ -339,7 +264,7 @@ class MainClass:
         self._entry_event = market_event
         self._entry_score = scores
         self._transaction_type = transaction_type
-        # print("{} stocks at : ".format(msg) + str(q[-1]))
+        print("{} stocks at : ".format(msg) + str(q[-1]))
 
     def _is_profit(self, diff):
         return (self._transaction_type == TransactionType.LONG and diff > 0) \
