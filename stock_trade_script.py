@@ -31,169 +31,21 @@ BUY_QUANTITY = 'buy_quantity'
 VOLUME = 'volume'
 
 
-class MarketChangeDetector:
-    def __init__(self, string_date_key, window_len, base_filter_func, long_score_func_list: list,
-                 short_score_func_list: list, score_filter_func, execute_entry_func, execute_exit_func):
-        self._base_filter_func = base_filter_func
-        self._long_score_func_list = long_score_func_list
-        self._short_score_func_list = short_score_func_list
-        self._score_filter_func = score_filter_func
-        self._execute_entry_func = execute_entry_func
-        self._execute_exit_func = execute_exit_func
-
-        self._string_date_key = string_date_key
-
-        keys_to_track = [EMPTY_KEY, self._string_date_key, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME,
-                         LAST_PRICE]
-        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
-                                                                keys_to_track=keys_to_track,
-                                                                string_date_key=self._string_date_key)
-
-        self._filter_pass_key_name = 'bool'
-        self._filter_pass_queue = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
-                                                              keys_to_track=[self._filter_pass_key_name],
-                                                              string_date_key=self._string_date_key)
-
-        self._took_position = False
-
-    def run(self, market_event):
-        if not self._took_position:
-            self._try_take_position(market_event)
-        else:
-            self._execute_exit_func(market_event)
-
-    def _try_take_position(self, market_event):
-        def set_flag_with_base_filter_func():
-            if self._base_filter_func(current_event_list_view):
-                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-            else:
-                self._filter_pass_queue.move(self.get_filter_event(market_event, False))
-
-        self._event_window_15_sec.move(market_event)
-        current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
-        if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
-            if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
-                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
-                x = 0
-            long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
-            short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
-            if self._score_filter_func(long_scores):
-                self._execute_entry_func(market_event, TransactionType.LONG, long_scores)
-                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                self._took_position = True
-            elif self._score_filter_func(short_scores):
-                self._execute_entry_func(market_event, TransactionType.SHORT, short_scores)
-                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                self._took_position = True
-            else:
-                set_flag_with_base_filter_func()
-
-        else:
-            set_flag_with_base_filter_func()
-
-    @staticmethod
-    def debug_point(current_event_list_view):
-        if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
-                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
-            x = 0
-
-    def get_filter_event(self, market_event, state: bool):
-        filter_event = {
-            self._string_date_key: market_event.get(self._string_date_key),
-            self._filter_pass_key_name: state
-        }
-        return filter_event
-
-
-class MainClass:
-    def __init__(self, file_name, median, price_percentage_diff, result_time: datetime, string_date_key):
-        self._file_name = file_name
-        self._median = median
-        self._price_percentage_diff = price_percentage_diff
+class ScoreFunctions:
+    def __init__(self, median, price_percentage_diff_threshold, result_time: datetime):
+        self._price_percentage_diff_threshold = price_percentage_diff_threshold
         self._result_time = result_time + timedelta(
             seconds=10)  # for changing the time to react from result announcement
-        self._string_date_key = string_date_key
         self._base_filter_volume_threshold = self.get_vol_threshold(median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
         self._market_open_time = self._result_time.replace(hour=9, minute=15, second=0)
-        self._entry_score = None
-        self._entry_event = None
-        self._exit_event = None
-        self._transaction_type = None
-        self._profit_limit = 0.01
-        self._loss_limit = 0.01
 
-        # print("self._base_filter_volume_threshold: {}".format(self._base_filter_volume_threshold))
+    def long_score_func_list(self):
+        return [self.volume_score_function, self.long_price_quantity_score, self.result_score]
 
-    def run(self):
-        def get_instruments_to_fetch():
-            results_for_today = bse.get_result_announcement_meta_for_today()
-            results_for_yesterday = bse.get_result_announcement_meta_for_yesterday()
-            results_for_today.extend(results_for_yesterday)
-
-            security_codes = list(map(lambda j: j['security_code'], results_for_today))
-            instrument_mapping = k_util.map_bse_code_to_instrument_id(security_codes)
-            return [int(v) for v in instrument_mapping.values()]
-
-        market_change_detector = MarketChangeDetector(self._string_date_key, 15, self.base_filter,
-                                                      [self.volume_score_function, self.long_price_quantity_score,
-                                                       self.result_score],
-                                                      [self.volume_score_function, self.short_price_quantity_score,
-                                                       self.result_score],
-                                                      self.score_filter, self.entry_function, self.exit_function)
-
-        with open('./config.yml') as handle:
-            config = yaml.load(handle)
-        postgres = PostgresIO(config['postgres-config'])
-        postgres.connect()
-
-        bse = BseUtil(config, postgres)
-        k_util = KiteUtil(postgres, config)
-
-        session_info = k_util.get_current_session_info()['result'][0]
-        instruments = get_instruments_to_fetch()
-
-        kws = KiteTicker(session_info['api_key'], session_info['access_token'])
-
-        def on_ticks(ws, ticks):
-            # Callback to receive ticks.
-            for tick in ticks:
-                market_change_detector.run(tick)
-                for key in tick.keys():
-                    if isinstance(tick[key], datetime):
-                        tick[key] = str(tick[key])
-
-            stock_logger.info("{}".format(json.dumps(ticks)))
-
-        def on_connect(ws, response):
-            # Callback on successful connect.
-            # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
-
-            ws.subscribe(instruments)
-
-            # Set RELIANCE to tick in `full` mode.
-            ws.set_mode(ws.MODE_FULL, instruments)
-
-        def on_close(ws, code, reason):
-            # On connection close stop the main loop
-            # Reconnection will not happen after executing `ws.stop()`
-            ws.stop()
-
-        kws.on_ticks = on_ticks
-        kws.on_connect = on_connect
-        kws.on_close = on_close
-
-        kws.connect()
-
-        return {
-            'entry': self._entry_event,
-            'exit': self._exit_event,
-            'score': self._entry_score,
-            'type': str(self._transaction_type)
-        }
+    def short_score_func_list(self):
+        return [self.volume_score_function, self.short_price_quantity_score, self.result_score]
 
     def base_filter(self, q: list) -> bool:
         start_end_vol_diff = self.start_end_diff(q, VOLUME)
@@ -250,7 +102,7 @@ class MainClass:
         return score
 
     def price_diff_threshold_breached(self, price_diff, q):
-        return abs(price_diff) > (self._price_percentage_diff * q[0][LAST_PRICE]) / 100
+        return abs(price_diff) > (self._price_percentage_diff_threshold * q[0][LAST_PRICE]) / 100
 
     @staticmethod
     def start_end_diff(q, key):
@@ -259,7 +111,62 @@ class MainClass:
     def score_filter(self, score_list: list) -> bool:
         return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
 
-    def entry_function(self, market_event, transaction_type: TransactionType, scores: list):
+
+class MarketChangeDetector:
+    """
+                return MarketChangeDetector(self._string_date_key, 15, self.base_filter,
+                                        [self.volume_score_function, self.long_price_quantity_score, self.result_score],
+                                        [self.volume_score_function, self.short_price_quantity_score, self.result_score],
+                                        self.score_filter)
+
+    """
+    def __init__(self, string_date_key, window_len, score_functions: ScoreFunctions):
+        self._base_filter_func = score_functions.base_filter
+        self._long_score_func_list = score_functions.long_score_func_list()
+        self._short_score_func_list = score_functions.short_score_func_list()
+        self._score_filter_func = score_functions.score_filter
+
+        self._string_date_key = string_date_key
+
+        keys_to_track = [EMPTY_KEY, self._string_date_key, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME,
+                         LAST_PRICE]
+        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
+                                                                keys_to_track=keys_to_track,
+                                                                string_date_key=self._string_date_key)
+
+        self._filter_pass_key_name = 'bool'
+        self._filter_pass_queue = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
+                                                              keys_to_track=[self._filter_pass_key_name],
+                                                              string_date_key=self._string_date_key)
+
+        self._trade_completed = False
+
+        self._profit_limit = 0.01
+        self._loss_limit = 0.01
+
+        self._took_position = False
+        self._entry_score = None
+        self._entry_event = None
+        self._exit_event = None
+        self._transaction_type = None
+
+    def run(self, market_event):
+        if not self._trade_completed:
+            if not self._took_position:
+                self._try_take_position(market_event)
+            else:
+                if self._try_exiting(market_event):
+                    self._trade_completed = True
+
+    def get_summary(self):
+        return {
+            'entry': self._entry_event,
+            'exit': self._exit_event,
+            'score': self._entry_score,
+            'type': str(self._transaction_type)
+        }
+
+    def _entry_function(self, market_event, transaction_type: TransactionType, scores: list):
         msg = "buy" if transaction_type == TransactionType.LONG else "sell"
         self._entry_event = market_event
         self._entry_score = scores
@@ -270,7 +177,7 @@ class MainClass:
         return (self._transaction_type == TransactionType.LONG and diff > 0) \
                or (self._transaction_type == TransactionType.SHORT and diff < 0)
 
-    def exit_function(self, market_event) -> bool:
+    def _try_exiting(self, market_event) -> bool:
         diff = self._entry_event[LAST_PRICE] - market_event[LAST_PRICE]
         abs_change = abs(diff)
         if self._is_profit(diff):
@@ -285,6 +192,120 @@ class MainClass:
                 return True
             else:
                 return False
+
+    def _try_take_position(self, market_event):
+        def set_flag_with_base_filter_func():
+            if self._base_filter_func(current_event_list_view):
+                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+            else:
+                self._filter_pass_queue.move(self.get_filter_event(market_event, False))
+
+        self._event_window_15_sec.move(market_event)
+        current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
+        if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
+            if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
+                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
+                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
+                x = 0
+            long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
+            short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
+            if self._score_filter_func(long_scores):
+                self._entry_function(market_event, TransactionType.LONG, long_scores)
+                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+                self._took_position = True
+            elif self._score_filter_func(short_scores):
+                self._entry_function(market_event, TransactionType.SHORT, short_scores)
+                self._filter_pass_queue.move(self.get_filter_event(market_event, True))
+                self._took_position = True
+            else:
+                set_flag_with_base_filter_func()
+
+        else:
+            set_flag_with_base_filter_func()
+
+    @staticmethod
+    def debug_point(current_event_list_view):
+        if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
+                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
+                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
+            x = 0
+
+    def get_filter_event(self, market_event, state: bool):
+        filter_event = {
+            self._string_date_key: market_event.get(self._string_date_key),
+            self._filter_pass_key_name: state
+        }
+        return filter_event
+
+
+class MainClass:
+    def __init__(self, file_name, median, price_percentage_diff_threshold, result_time: datetime, string_date_key):
+        self._file_name = file_name
+        self._string_date_key = string_date_key
+        self._score_functions = ScoreFunctions(median, price_percentage_diff_threshold, result_time)
+        self._market_change_detector_dict = {}
+
+    def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
+        def _create_market_change_detector():
+            return MarketChangeDetector(self._string_date_key, 15, self._score_functions)
+
+        if instrument_code not in self._market_change_detector_dict.keys():
+            self._market_change_detector_dict[instrument_code] = _create_market_change_detector()
+
+        return self._market_change_detector_dict[instrument_code]
+
+    def run(self):
+        def get_instruments_to_fetch():
+            results_for_today = bse.get_result_announcement_meta_for_today()
+            results_for_yesterday = bse.get_result_announcement_meta_for_yesterday()
+            results_for_today.extend(results_for_yesterday)
+
+            security_codes = list(map(lambda j: j['security_code'], results_for_today))
+            instrument_mapping = k_util.map_bse_code_to_instrument_id(security_codes)
+            return [int(v) for v in instrument_mapping.values()]
+
+        with open('./config.yml') as handle:
+            config = yaml.load(handle)
+        postgres = PostgresIO(config['postgres-config'])
+        postgres.connect()
+
+        bse = BseUtil(config, postgres)
+        k_util = KiteUtil(postgres, config)
+
+        session_info = k_util.get_current_session_info()['result'][0]
+        instruments = get_instruments_to_fetch()
+
+        kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+
+        def on_ticks(ws, ticks):
+            # Callback to receive ticks.
+            for tick in ticks:
+                self._get_market_change_detector(tick['instrument_code']).run(tick)
+                for key in tick.keys():
+                    if isinstance(tick[key], datetime):
+                        tick[key] = str(tick[key])
+
+            stock_logger.info("{}".format(json.dumps(ticks)))
+
+        def on_connect(ws, response):
+            # Callback on successful connect.
+            # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
+
+            ws.subscribe(instruments)
+
+            # Set RELIANCE to tick in `full` mode.
+            ws.set_mode(ws.MODE_FULL, instruments)
+
+        def on_close(ws, code, reason):
+            # On connection close stop the main loop
+            # Reconnection will not happen after executing `ws.stop()`
+            ws.stop()
+
+        kws.on_ticks = on_ticks
+        kws.on_connect = on_connect
+        kws.on_close = on_close
+
+        kws.connect()
 
 
 if __name__ == '__main__':
