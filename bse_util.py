@@ -109,6 +109,15 @@ class BseUtil:
         self.__postgres = postgres
         self.__upcoming_results_date_table = config['bse_send_result_notification']['upcoming_result_table']
         self.__stock_date_wise_monitoring_time_window = self.__prepare_significant_stock_time_ranges()
+        self.__stats_table = config['bse_config']['market_stat_table']
+
+    def get_stat(self, security_code):
+        return self.__postgres.execute(["SELECT * FROM {} WHERE security_code = '{}'"
+                                       .format(self.__stats_table, security_code)],
+                                       fetch_result=True)['result']
+
+    def get_all_stats(self):
+        return self.__postgres.execute(["SELECT * FROM {}".format(self.__stats_table)], fetch_result=True)['result']
 
     def __prepare_significant_stock_time_ranges(self) -> dict:
         historical_result_file = self.__config['bse_send_result_notification']['historical_result_time_info_file']

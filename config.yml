@@ -32,6 +32,7 @@ bse_config:
   upcoming_result_table: bse.result_dates
   filtered_stock_list_table: bse.filtered_stock_info
   announcements_table: bse.bse_announcements
+  market_stat_table: bse.stock_stats
 
 
 bse_send_result_notification:

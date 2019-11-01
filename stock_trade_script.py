@@ -20,6 +20,8 @@ msg_logger = setup_logger("msg_logger", "/tmp/app.log")
 
 EMPTY_KEY = ''
 
+TIMESTAMP = 'timestamp'
+
 LAST_PRICE = 'last_price'
 
 LAST_TRADE_TIME = 'last_trade_time'
@@ -32,11 +34,11 @@ VOLUME = 'volume'
 
 
 class ScoreFunctions:
-    def __init__(self, median, price_percentage_diff_threshold, result_time: datetime):
+    def __init__(self, volume_median, price_percentage_diff_threshold):
         self._price_percentage_diff_threshold = price_percentage_diff_threshold
         self._result_time = result_time + timedelta(
             seconds=10)  # for changing the time to react from result announcement
-        self._base_filter_volume_threshold = self.get_vol_threshold(median, 6 * 60 * 60)
+        self._base_filter_volume_threshold = self.get_vol_threshold(volume_median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
         self._market_open_time = self._result_time.replace(hour=9, minute=15, second=0)
@@ -112,86 +114,85 @@ class ScoreFunctions:
         return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
 
 
-class MarketChangeDetector:
-    """
-                return MarketChangeDetector(self._string_date_key, 15, self.base_filter,
-                                        [self.volume_score_function, self.long_price_quantity_score, self.result_score],
-                                        [self.volume_score_function, self.short_price_quantity_score, self.result_score],
-                                        self.score_filter)
-
-    """
-    def __init__(self, string_date_key, window_len, score_functions: ScoreFunctions):
-        self._base_filter_func = score_functions.base_filter
-        self._long_score_func_list = score_functions.long_score_func_list()
-        self._short_score_func_list = score_functions.short_score_func_list()
-        self._score_filter_func = score_functions.score_filter
-
-        self._string_date_key = string_date_key
-
-        keys_to_track = [EMPTY_KEY, self._string_date_key, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME,
-                         LAST_PRICE]
-        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
-                                                                keys_to_track=keys_to_track,
-                                                                string_date_key=self._string_date_key)
-
-        self._filter_pass_key_name = 'bool'
-        self._filter_pass_queue = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
-                                                              keys_to_track=[self._filter_pass_key_name],
-                                                              string_date_key=self._string_date_key)
-
-        self._trade_completed = False
-
-        self._profit_limit = 0.01
-        self._loss_limit = 0.01
-
-        self._took_position = False
-        self._entry_score = None
+class MarketPosition:
+    def __init__(self):
+        self._entry_scores = None
         self._entry_event = None
         self._exit_event = None
         self._transaction_type = None
+        self._took_position = False
+        self._trade_completed = False
 
-    def run(self, market_event):
-        if not self._trade_completed:
-            if not self._took_position:
-                self._try_take_position(market_event)
-            else:
-                if self._try_exiting(market_event):
-                    self._trade_completed = True
+    def enter(self, entry_event, transaction_type: TransactionType, scores: list):
+        self._entry_event = entry_event
+        self._transaction_type = transaction_type
+        self._entry_scores = scores
+        self._took_position = True
+        msg = "buy" if transaction_type == TransactionType.LONG else "sell"
+        print("{} stocks at : ".format(msg) + str(entry_event))
+
+    def entry_price(self):
+        return self._entry_event[LAST_PRICE]
+
+    def is_profitable_diff(self, diff):
+        return (self._transaction_type == TransactionType.LONG and diff > 0) \
+               or (self._transaction_type == TransactionType.SHORT and diff < 0)
+
+    def exit(self, exit_event):
+        self._exit_event = exit_event
+        self._trade_completed = True
+
+    def is_trade_done(self):
+        return self._trade_completed
 
     def get_summary(self):
         return {
             'entry': self._entry_event,
             'exit': self._exit_event,
-            'score': self._entry_score,
+            'score': self._entry_scores,
             'type': str(self._transaction_type)
         }
 
-    def _entry_function(self, market_event, transaction_type: TransactionType, scores: list):
-        msg = "buy" if transaction_type == TransactionType.LONG else "sell"
-        self._entry_event = market_event
-        self._entry_score = scores
-        self._transaction_type = transaction_type
-        print("{} stocks at : ".format(msg) + str(q[-1]))
 
-    def _is_profit(self, diff):
-        return (self._transaction_type == TransactionType.LONG and diff > 0) \
-               or (self._transaction_type == TransactionType.SHORT and diff < 0)
+class MarketChangeDetector:
+    def __init__(self, window_len, score_functions: ScoreFunctions):
+        self._base_filter_func = score_functions.base_filter
+        self._long_score_func_list = score_functions.long_score_func_list()
+        self._short_score_func_list = score_functions.short_score_func_list()
+        self._score_filter_func = score_functions.score_filter
 
-    def _try_exiting(self, market_event) -> bool:
-        diff = self._entry_event[LAST_PRICE] - market_event[LAST_PRICE]
+        keys_to_track = [EMPTY_KEY, TIMESTAMP, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME,
+                         LAST_PRICE]
+        self._event_window_15_sec = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
+                                                                keys_to_track=keys_to_track)
+
+        self._filter_pass_key_name = 'bool'
+        self._filter_pass_queue = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
+                                                              keys_to_track=[self._filter_pass_key_name])
+
+        self._profit_limit = 0.01
+        self._loss_limit = 0.01
+
+        self._position = MarketPosition()
+
+        self._trade_completed = False
+
+    def run(self, market_event):
+        if not self._position.is_trade_done():
+            if not self._position._took_position:
+                self._try_take_position(market_event)
+            else:
+                self._try_exiting(market_event)
+
+    def _try_exiting(self, market_event):
+        diff = self._position.entry_price() - market_event[LAST_PRICE]
         abs_change = abs(diff)
-        if self._is_profit(diff):
-            if abs_change > self._entry_event[LAST_PRICE] * self._profit_limit:
-                self._exit_event = market_event
-                return True
-            else:
-                return False
+        if self._position.is_profitable_diff(diff):
+            if abs_change > self._position.entry_price() * self._profit_limit:
+                self._position.exit(market_event)
         else:
-            if abs_change > self._entry_event[LAST_PRICE] * self._loss_limit:
-                self._exit_event = market_event
-                return True
-            else:
-                return False
+            if abs_change > self._position.entry_price() * self._loss_limit:
+                self._position.exit(market_event)
 
     def _try_take_position(self, market_event):
         def set_flag_with_base_filter_func():
@@ -210,13 +211,13 @@ class MarketChangeDetector:
             long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
-                self._entry_function(market_event, TransactionType.LONG, long_scores)
+                self._position.enter(market_event, TransactionType.LONG, long_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                self._took_position = True
+                self._position._took_position = True
             elif self._score_filter_func(short_scores):
-                self._entry_function(market_event, TransactionType.SHORT, short_scores)
+                self._position.enter(market_event, TransactionType.SHORT, short_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                self._took_position = True
+                self._position._took_position = True
             else:
                 set_flag_with_base_filter_func()
 
@@ -232,51 +233,55 @@ class MarketChangeDetector:
 
     def get_filter_event(self, market_event, state: bool):
         filter_event = {
-            self._string_date_key: market_event.get(self._string_date_key),
+            TIMESTAMP: market_event.get(TIMESTAMP),
             self._filter_pass_key_name: state
         }
         return filter_event
 
 
 class MainClass:
-    def __init__(self, file_name, median, price_percentage_diff_threshold, result_time: datetime, string_date_key):
-        self._file_name = file_name
-        self._string_date_key = string_date_key
-        self._score_functions = ScoreFunctions(median, price_percentage_diff_threshold, result_time)
+    def __init__(self):
+        with open('./config.yml') as handle:
+            config = yaml.load(handle)
+        self._postgres = PostgresIO(config['postgres-config'])
+        self._postgres.connect()
+
+        self._bse = BseUtil(config, self._postgres)
+        self._k_util = KiteUtil(self._postgres, config)
+        self._instrument_to_security_code = self._k_util.map_instrument_ids_to_trading_symbol()
+
+        self._market_stats = self._bse.get_all_stats()
         self._market_change_detector_dict = {}
+
+        session_info = self._k_util.get_current_session_info()['result'][0]
+        self._instruments_to_fetch = self._get_instruments_to_fetch()
+        self._kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+
+    def _volume_median_for_instrument_code(self, instrument_code):
+        trading_sym = self._instrument_to_security_code.get(instrument_code)
+        stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
+        return stat['volume_median']
 
     def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
         def _create_market_change_detector():
-            return MarketChangeDetector(self._string_date_key, 15, self._score_functions)
+            score_func = ScoreFunctions(self._volume_median_for_instrument_code(instrument_code), 0.2)
+            return MarketChangeDetector(15, score_func)
 
         if instrument_code not in self._market_change_detector_dict.keys():
             self._market_change_detector_dict[instrument_code] = _create_market_change_detector()
 
         return self._market_change_detector_dict[instrument_code]
 
+    def _get_instruments_to_fetch(self):
+        results_for_today = self._bse.get_result_announcement_meta_for_today()
+        results_for_yesterday = self._bse.get_result_announcement_meta_for_yesterday()
+        results_for_today.extend(results_for_yesterday)
+
+        security_codes = list(map(lambda j: j['security_code'], results_for_today))
+        instrument_mapping = self._k_util.map_bse_code_to_instrument_id(security_codes)
+        return [int(v) for v in instrument_mapping.values()]
+
     def run(self):
-        def get_instruments_to_fetch():
-            results_for_today = bse.get_result_announcement_meta_for_today()
-            results_for_yesterday = bse.get_result_announcement_meta_for_yesterday()
-            results_for_today.extend(results_for_yesterday)
-
-            security_codes = list(map(lambda j: j['security_code'], results_for_today))
-            instrument_mapping = k_util.map_bse_code_to_instrument_id(security_codes)
-            return [int(v) for v in instrument_mapping.values()]
-
-        with open('./config.yml') as handle:
-            config = yaml.load(handle)
-        postgres = PostgresIO(config['postgres-config'])
-        postgres.connect()
-
-        bse = BseUtil(config, postgres)
-        k_util = KiteUtil(postgres, config)
-
-        session_info = k_util.get_current_session_info()['result'][0]
-        instruments = get_instruments_to_fetch()
-
-        kws = KiteTicker(session_info['api_key'], session_info['access_token'])
-
         def on_ticks(ws, ticks):
             # Callback to receive ticks.
             for tick in ticks:
@@ -301,58 +306,12 @@ class MainClass:
             # Reconnection will not happen after executing `ws.stop()`
             ws.stop()
 
-        kws.on_ticks = on_ticks
-        kws.on_connect = on_connect
-        kws.on_close = on_close
+        self._kws.on_ticks = on_ticks
+        self._kws.on_connect = on_connect
+        self._kws.on_close = on_close
 
-        kws.connect()
+        self._kws.connect()
 
 
 if __name__ == '__main__':
-
-    stat_file = "../market_analysis_data/stock_stats/combined_stats.json"
-    with open(stat_file) as handle:
-        stats = json.load(handle)
-
-    summary_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
-    names = list(map(lambda j_elem: j_elem['file_name'], summary_arr))
-
-
-    def get_median(symbol):
-        return list(filter(lambda j_elem: j_elem['stock_identifier'] == symbol, stats))[0]['volume_median']
-
-
-    def get_result_time(symbol):
-        time_elem = list(filter(lambda j_elem: j_elem['file_name'] == symbol, summary_arr))
-        if len(time_elem) != 1:
-            raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
-        return datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%Y-%m-%d %H:%M:%S')
-
-
-    results = []
-
-
-    def func(file_name, string_date_key):
-        result = MainClass(file_name + ".csv", get_median(file_name), 0.2, get_result_time(file_name), string_date_key) \
-            .run()
-        result['file_name'] = file_name
-        results.append(result)
-
-
-    for name in names:
-        try:
-            try:
-                func(name, "timestamp")
-            except:
-                func(name, "0.timestamp")
-        except Exception as e:
-            print("failed to process file: " + name)
-            # raise e
-
-    json_file_path = "../market_analysis_data/simulation_result.json"
-    csv_file_path = "../market_analysis_data/simulation_result.csv"
-    with open(json_file_path, 'w') as handle:
-        json.dump(results, handle, indent=2)
-
-    flat_j_arr = [flatten(j_elem) for j_elem in results]
-    json_arr_to_csv(flat_j_arr, csv_file_path)
+    MainClass().run()
