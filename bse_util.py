@@ -64,6 +64,21 @@ class BseAnnouncementCrawler:
                 result[key] = j_elem
         return result
 
+    def get_latest_result_time_for_security_code(self, security_code):
+        query = "SELECT * FROM {} WHERE {}='{}' AND {}='{}'".format(
+            self._announcement_table,
+            self._system_readable_date_key, system_readable_today(),
+            'security_code', security_code
+        )
+        todays_captured_announcements = self._postgres.execute([query], fetch_result=True)['result']
+        result = {}
+        for j_elem in todays_captured_announcements:
+            key = j_elem['security_code']
+            if key not in result.keys() or result[key]['news_datetime'] < j_elem['news_datetime']:
+                result[key] = j_elem
+        return result
+
+
     def _save_to_database(self, announcements):
         self._postgres.insert_jarr(announcements, self._announcement_table)
 

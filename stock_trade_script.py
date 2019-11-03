@@ -12,7 +12,6 @@ from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, fla
 from general_util import setup_logger
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
-from stock_data_analysis import PerSecondLatestEventTracker, TransactionType
 
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
@@ -33,15 +32,93 @@ BUY_QUANTITY = 'buy_quantity'
 VOLUME = 'volume'
 
 
+class PerSecondLatestEventTracker:
+    DATETIME_OBJ = 'datetime'
+
+    def __init__(self, window_length_in_seconds: int, keys_to_track: list):
+        self.__window_length = window_length_in_seconds
+        self.__keys_to_track = keys_to_track
+        self.__events = Queue(maxsize=window_length_in_seconds)
+        self._sum = [0] * len(keys_to_track)
+
+    def get_current_queue_snapshot(self) -> list:
+        return list(self.__events.queue)
+
+    def move(self, json_event: dict):
+        current_event = self.__get_marshaled_event(json_event)
+
+        queue_as_list = self.__events.queue
+        if len(queue_as_list) > 0:
+            last_element = queue_as_list[-1]
+            seconds_gap = self.__get_seconds_gap_from_last_received_event(last_element, current_event)
+            # print(seconds_gap, 'gap')
+
+            if seconds_gap < 1:
+                self.__overwrite_event(last_element, current_event)
+            else:
+                for i in range(seconds_gap - 1):
+                    self.__put(last_element)
+
+            self.__put(current_event)
+        else:
+            self.__put(current_event)
+
+    def __put(self, event):
+        if self.__events.qsize() == self.__events.maxsize:
+            self.__events.get_nowait()
+        self.__events.put_nowait(event)
+
+    @staticmethod
+    def __get_seconds_gap_from_last_received_event(last_element, marshaled_event):
+        last_dt = last_element[PerSecondLatestEventTracker.DATETIME_OBJ]
+        curr_dt = marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ]
+        td = curr_dt - last_dt
+        seconds_gap = int(td.total_seconds())
+        return seconds_gap
+
+    def __overwrite_event(self, target, source):
+        # print(self.__keys_to_track)
+        for key in self.__keys_to_track:
+            # print(key)
+            target[key] = source.get(key)
+
+    @staticmethod
+    def __round_seconds(date_time_object):
+        new_date_time = date_time_object
+
+        if new_date_time.microsecond >= 500000:
+            new_date_time = new_date_time + timedelta(seconds=1)
+
+        return new_date_time.replace(microsecond=0)
+
+    def __get_marshaled_event(self, json_event):
+        marshaled_event = {}
+        self.__overwrite_event(marshaled_event, json_event)
+
+        dt = json_event[TIMESTAMP]
+        marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ] = self.__round_seconds(dt)
+
+        return marshaled_event
+
+
+class TransactionType(Enum):
+    SHORT = 1
+    LONG = 2
+
+
 class ScoreFunctions:
-    def __init__(self, volume_median, price_percentage_diff_threshold):
+    def __init__(self, volume_median, price_percentage_diff_threshold, security_code,
+                 bse_announcement_crawler: BseAnnouncementCrawler):
         self._price_percentage_diff_threshold = price_percentage_diff_threshold
-        self._result_time = result_time + timedelta(
-            seconds=10)  # for changing the time to react from result announcement
         self._base_filter_volume_threshold = self.get_vol_threshold(volume_median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
-        self._market_open_time = self._result_time.replace(hour=9, minute=15, second=0)
+        self._market_open_time = datetime.now().replace(hour=9, minute=15, second=0)
+        self._security_code = security_code
+        self._bse_announcement_crawler = bse_announcement_crawler
+
+    def _update_result_time(self):
+        self._bse_announcement_crawler.get_company_announcement_map_for_today()
 
     def long_score_func_list(self):
         return [self.volume_score_function, self.long_price_quantity_score, self.result_score]
@@ -77,8 +154,9 @@ class ScoreFunctions:
         return score
 
     def result_score(self, q: list) -> int:
+        result_time = self._bse_announcement_crawler.get_latest_result_time_for_security_code(self._security_code)
         q_time = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
-        td = q_time - self._result_time
+        td = q_time - result_time
         return (0 <= td.total_seconds() < 10 * 60) * 2
 
     def long_price_quantity_score(self, q: list) -> int:
@@ -204,10 +282,6 @@ class MarketChangeDetector:
         self._event_window_15_sec.move(market_event)
         current_event_list_view = self._event_window_15_sec.get_current_queue_snapshot()
         if any([e[self._filter_pass_key_name] for e in self._filter_pass_queue.get_current_queue_snapshot()]):
-            if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 59 \
-                    and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second > 10:
-                x = 0
             long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
@@ -247,8 +321,8 @@ class MainClass:
         self._postgres.connect()
 
         self._bse = BseUtil(config, self._postgres)
+        self._bse_announcement_crawler = BseAnnouncementCrawler(self._postgres, config)
         self._k_util = KiteUtil(self._postgres, config)
-        self._instrument_to_security_code = self._k_util.map_instrument_ids_to_trading_symbol()
 
         self._market_stats = self._bse.get_all_stats()
         self._market_change_detector_dict = {}
@@ -257,15 +331,17 @@ class MainClass:
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._kws = KiteTicker(session_info['api_key'], session_info['access_token'])
 
-    def _volume_median_for_instrument_code(self, instrument_code):
-        trading_sym = self._instrument_to_security_code.get(instrument_code)
+    def _volume_median_for_instrument_code(self, trading_sym):
         stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
-        return stat['volume_median']
+        return float(stat['volume_median'])
 
     def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
         def _create_market_change_detector():
-            score_func = ScoreFunctions(self._volume_median_for_instrument_code(instrument_code), 0.2)
+            score_func = ScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
+                                        self._bse_announcement_crawler)
             return MarketChangeDetector(15, score_func)
+
+        trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
 
         if instrument_code not in self._market_change_detector_dict.keys():
             self._market_change_detector_dict[instrument_code] = _create_market_change_detector()
@@ -285,7 +361,7 @@ class MainClass:
         def on_ticks(ws, ticks):
             # Callback to receive ticks.
             for tick in ticks:
-                self._get_market_change_detector(tick['instrument_code']).run(tick)
+                self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
                 for key in tick.keys():
                     if isinstance(tick[key], datetime):
                         tick[key] = str(tick[key])
@@ -311,6 +387,9 @@ class MainClass:
         self._kws.on_close = on_close
 
         self._kws.connect()
+
+    def tick(self, tick):
+        self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
 
 
 if __name__ == '__main__':
