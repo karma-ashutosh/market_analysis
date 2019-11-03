@@ -388,8 +388,10 @@ class MainClass:
 
         self._kws.connect()
 
-    def tick(self, tick):
-        self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
+    def tick(self, ticks):
+        for index in range(len(ticks)):
+            print(index)
+            self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
 
 
 if __name__ == '__main__':
