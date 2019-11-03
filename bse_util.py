@@ -76,7 +76,13 @@ class BseAnnouncementCrawler:
             key = j_elem['security_code']
             if key not in result.keys() or result[key]['news_datetime'] < j_elem['news_datetime']:
                 result[key] = j_elem
-        return result['{}'.format(security_code)]['news_datetime']
+
+        if len(result) == 0:
+            now = datetime.now()
+            result['{}'.format(security_code)] = {
+                'news_datetime': (now - timedelta(days=2)).strftime('%Y-%m-%dT%H:%M:%S')
+            }
+        return datetime.strptime(result['{}'.format(security_code)]['news_datetime'].split(".")[0], '%Y-%m-%dT%H:%M:%S')
 
 
     def _save_to_database(self, announcements):

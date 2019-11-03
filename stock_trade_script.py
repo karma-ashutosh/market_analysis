@@ -3,6 +3,7 @@ from datetime import datetime
 from datetime import timedelta
 from enum import Enum
 from queue import Queue
+import traceback
 
 import yaml
 from kiteconnect import KiteTicker
@@ -263,13 +264,14 @@ class MarketChangeDetector:
                 self._try_exiting(market_event)
 
     def _try_exiting(self, market_event):
-        diff = self._position.entry_price() - market_event[LAST_PRICE]
-        abs_change = abs(diff)
+        entry_price = self._position.entry_price()
+        diff = market_event[LAST_PRICE] - entry_price
+        abs_change = diff if diff > 0 else diff * -1
         if self._position.is_profitable_diff(diff):
-            if abs_change > self._position.entry_price() * self._profit_limit:
+            if abs_change > entry_price * self._profit_limit:
                 self._position.exit(market_event)
         else:
-            if abs_change > self._position.entry_price() * self._loss_limit:
+            if abs_change > entry_price * self._loss_limit:
                 self._position.exit(market_event)
 
     def _try_take_position(self, market_event):
@@ -312,6 +314,9 @@ class MarketChangeDetector:
         }
         return filter_event
 
+    def get_summary(self):
+        return self._position.get_summary()
+
 
 class MainClass:
     def __init__(self):
@@ -330,6 +335,7 @@ class MainClass:
         session_info = self._k_util.get_current_session_info()['result'][0]
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+        self._instruments_to_ignore = set()
 
     def _volume_median_for_instrument_code(self, trading_sym):
         stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
@@ -390,8 +396,21 @@ class MainClass:
 
     def tick(self, ticks):
         for index in range(len(ticks)):
-            print(index)
-            self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
+            try:
+                if ticks[index]['instrument_token'] not in self._instruments_to_ignore:
+                    self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
+            except Exception as e:
+                traceback.print_exc()
+                print("ignoring instrument at index: {}".format(index))
+                self._instruments_to_ignore.add(ticks[index]['instrument_token'])
+
+    def get_summary(self):
+        summaries = {}
+        for key in self._market_change_detector_dict.keys():
+            mcd = self._market_change_detector_dict[key]
+            summaries[key] = mcd.get_summary()
+        return summaries
+
 
 
 if __name__ == '__main__':
