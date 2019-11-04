@@ -67,8 +67,8 @@ class BseAnnouncementCrawler:
     def get_latest_result_time_for_security_code(self, security_code):
         query = "SELECT * FROM {} WHERE {}='{}' AND {}='{}'".format(
             self._announcement_table,
-            self._system_readable_date_key, system_readable_today(),
-            'security_code', security_code
+            'security_code', security_code,
+            self._system_readable_date_key, system_readable_today()
         )
         todays_captured_announcements = self._postgres.execute([query], fetch_result=True)['result']
         result = {}
@@ -84,9 +84,10 @@ class BseAnnouncementCrawler:
             }
         return datetime.strptime(result['{}'.format(security_code)]['news_datetime'].split(".")[0], '%Y-%m-%dT%H:%M:%S')
 
-
     def _save_to_database(self, announcements):
-        self._postgres.insert_jarr(announcements, self._announcement_table)
+        self._postgres.insert_or_skip_on_conflict(announcements, self._announcement_table, ['security_code',
+                                                                                            'system_readable_date',
+                                                                                            'news_id'])
 
     def _get_payload_from_bse_data(self, j_elem, system_readable_date):
         output = {}
