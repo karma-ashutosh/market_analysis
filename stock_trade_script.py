@@ -16,7 +16,7 @@ from postgres_io import PostgresIO
 
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
-msg_logger = setup_logger("msg_logger", "/tmp/app.log")
+logger = setup_logger("msg_logger", "./app.log")
 
 EMPTY_KEY = ''
 
@@ -208,7 +208,7 @@ class MarketPosition:
         self._entry_scores = scores
         self._took_position = True
         msg = "buy" if transaction_type == TransactionType.LONG else "sell"
-        print("{} stocks at : ".format(msg) + str(entry_event))
+        logger.info("{} stocks at : ".format(msg) + str(entry_event))
 
     def entry_price(self):
         return self._entry_event[LAST_PRICE]
@@ -257,11 +257,13 @@ class MarketChangeDetector:
         self._trade_completed = False
 
     def run(self, market_event):
-        if not self._position.is_trade_done():
-            if not self._position._took_position:
-                self._try_take_position(market_event)
-            else:
-                self._try_exiting(market_event)
+        # if not self._position.is_trade_done():
+        #     if not self._position._took_position:
+        #         self._try_take_position(market_event)
+        #     else:
+        #         self._try_exiting(market_event)
+        if not self._position._took_position:
+            self._try_take_position(market_event)
 
     def _try_exiting(self, market_event):
         entry_price = self._position.entry_price()
@@ -289,11 +291,9 @@ class MarketChangeDetector:
             if self._score_filter_func(long_scores):
                 self._position.enter(market_event, TransactionType.LONG, long_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                self._position._took_position = True
             elif self._score_filter_func(short_scores):
                 self._position.enter(market_event, TransactionType.SHORT, short_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
-                self._position._took_position = True
             else:
                 set_flag_with_base_filter_func()
 
@@ -368,20 +368,20 @@ class MainClass:
             # Callback to receive ticks.
             for tick in ticks:
                 self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
-                for key in tick.keys():
-                    if isinstance(tick[key], datetime):
-                        tick[key] = str(tick[key])
+                # for key in tick.keys():
+                #     if isinstance(tick[key], datetime):
+                #         tick[key] = str(tick[key])
 
-            stock_logger.info("{}".format(json.dumps(ticks)))
+            # stock_logger.info("{}".format(json.dumps(ticks)))
 
         def on_connect(ws, response):
             # Callback on successful connect.
             # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
 
-            ws.subscribe(instruments)
+            ws.subscribe(self._instruments_to_fetch)
 
             # Set RELIANCE to tick in `full` mode.
-            ws.set_mode(ws.MODE_FULL, instruments)
+            ws.set_mode(ws.MODE_FULL, self._instruments_to_fetch)
 
         def on_close(ws, code, reason):
             # On connection close stop the main loop
@@ -401,7 +401,7 @@ class MainClass:
                     self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
             except Exception as e:
                 traceback.print_exc()
-                print("ignoring instrument at index: {}".format(index))
+                logger.error("ignoring instrument at instrument_token: {}".format(ticks[index]['instrument_token']))
                 self._instruments_to_ignore.add(ticks[index]['instrument_token'])
 
     def get_summary(self):
@@ -410,7 +410,6 @@ class MainClass:
             mcd = self._market_change_detector_dict[key]
             summaries[key] = mcd.get_summary()
         return summaries
-
 
 
 if __name__ == '__main__':
