@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 from datetime import timedelta
 # todo https://urllib3.readthedocs.io/en/latest/user-guide.html#ssl
@@ -13,7 +14,9 @@ from dateparser import parse
 from general_util import csv_file_with_headers_to_json_arr
 from postgres_io import PostgresIO
 from result_date_object import ResultDate
+from general_util import setup_logger
 
+logger = setup_logger("stock_logger", "bse_util.log", msg_only=True)
 
 def get_bse_url_compatible_date(date_time_obj: datetime):
     return "{}{}{}".format(str(date_time_obj.year).zfill(4), str(date_time_obj.month).zfill(2),
@@ -42,6 +45,8 @@ class BseAnnouncementCrawler:
                                        ('ATTACHMENTNAME', 'attachment_name')]
 
     def refresh(self):
+        refresh_id = str(uuid.uuid4())
+        logger.info("refresh_id: {}, Starting bse refresh at {}".format(refresh_id, datetime.now())) 
         system_readable_date = system_readable_today()
         all_announcements = self._get_todays_board_meeting_updates()
         all_announcements.extend(self._get_todays_result_announcements_updates())
@@ -50,6 +55,7 @@ class BseAnnouncementCrawler:
         # new_announcements = list(filter(lambda j: j[self._news_id_key] not in already_captured_news_ids, payload_arr))
         # self._save_to_database(new_announcements)
         self._save_to_database(payload_arr)
+        logger.info("refresh_id: {}, Refresh done at {}".format(refresh_id, datetime.now())
 
     def get_company_announcement_map_for_today(self) -> dict:
         query = "SELECT * FROM {} WHERE {}='{}'".format(
