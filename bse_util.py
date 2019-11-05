@@ -46,9 +46,10 @@ class BseAnnouncementCrawler:
         all_announcements = self._get_todays_board_meeting_updates()
         all_announcements.extend(self._get_todays_result_announcements_updates())
         payload_arr = list(map(lambda j: self._get_payload_from_bse_data(j, system_readable_date), all_announcements))
-        already_captured_news_ids = self.__get_already_stored_news_ids(system_readable_date)
-        new_announcements = list(filter(lambda j: j[self._news_id_key] not in already_captured_news_ids, payload_arr))
-        self._save_to_database(new_announcements)
+        # already_captured_news_ids = self.__get_already_stored_news_ids(system_readable_date)
+        # new_announcements = list(filter(lambda j: j[self._news_id_key] not in already_captured_news_ids, payload_arr))
+        # self._save_to_database(new_announcements)
+        self._save_to_database(payload_arr)
 
     def get_company_announcement_map_for_today(self) -> dict:
         query = "SELECT * FROM {} WHERE {}='{}'".format(
