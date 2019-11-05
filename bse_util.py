@@ -55,7 +55,7 @@ class BseAnnouncementCrawler:
         # new_announcements = list(filter(lambda j: j[self._news_id_key] not in already_captured_news_ids, payload_arr))
         # self._save_to_database(new_announcements)
         self._save_to_database(payload_arr)
-        logger.info("refresh_id: {}, Refresh done at {}".format(refresh_id, datetime.now())
+        logger.info("refresh_id: {}, Refresh done at {}".format(refresh_id, datetime.now()))
 
     def get_company_announcement_map_for_today(self) -> dict:
         query = "SELECT * FROM {} WHERE {}='{}'".format(
