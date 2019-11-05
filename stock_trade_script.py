@@ -6,14 +6,14 @@ from queue import Queue
 import traceback
 
 import yaml
-from kiteconnect import KiteTicker
+from kiteconnect import KiteTicker, KiteConnect
 
 from bse_util import BseUtil, BseAnnouncementCrawler
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import setup_logger
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
-
+from kite_trade import place_order
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
@@ -336,6 +336,7 @@ class MainClass:
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._kws = KiteTicker(session_info['api_key'], session_info['access_token'])
         self._instruments_to_ignore = set()
+        self._kite_connect = KiteConnect(session_info['api_key'], session_info['access_token'])
 
     def _volume_median_for_instrument_code(self, trading_sym):
         stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
@@ -411,6 +412,9 @@ class MainClass:
             mcd = self._market_change_detector_dict[key]
             summaries[key] = mcd.get_summary()
         return summaries
+
+    def place_order(self, stock_code):
+        place_order(self._kite_connect, stock_code)
 
 
 if __name__ == '__main__':

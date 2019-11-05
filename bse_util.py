@@ -18,6 +18,7 @@ from general_util import setup_logger
 
 logger = setup_logger("stock_logger", "./bse_util.log", msg_only=True)
 
+
 def get_bse_url_compatible_date(date_time_obj: datetime):
     return "{}{}{}".format(str(date_time_obj.year).zfill(4), str(date_time_obj.month).zfill(2),
                            str(date_time_obj.day).zfill(2))

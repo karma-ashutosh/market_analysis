@@ -19,9 +19,14 @@ from kite_enums import Variety, Exchange, TransactionType, PRODUCT, OrderType, V
                     tag=None):"""
 
 
-def place_order_by_money(kite: KiteConnect, trading_symbol, amount):
+def place_order(kite: KiteConnect, trading_symbol):
     kite.place_order(variety=Variety.BRACKET.value, exchange=Exchange.BSE.value, tradingsymbol=trading_symbol,
                      transaction_type=TransactionType.BUY.value, quantity=1, product=PRODUCT.MIS.value,
                      order_type=OrderType.MARKET.value, validity=VALIDITY.DAY.value, squareoff=3.0, stoploss=2.0,
-                     trailing_stoploss=1.0)
+                     trailing_stoploss=1.0, price=70)
+
+    kite.place_order(variety=Variety.BRACKET.value, exchange=Exchange.NSE.value, tradingsymbol='INFY',
+                     transaction_type=TransactionType.BUY.value, quantity=1, product=PRODUCT.MIS.value,
+                     order_type=OrderType.LIMIT.value, validity=VALIDITY.DAY.value, squareoff=3.0, stoploss=2.0,
+                     trailing_stoploss=1.0, price=627)
     pass
