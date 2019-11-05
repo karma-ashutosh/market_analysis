@@ -366,8 +366,9 @@ class MainClass:
     def run(self):
         def on_ticks(ws, ticks):
             # Callback to receive ticks.
-            for tick in ticks:
-                self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
+            self.handle_ticks_safely(ticks)
+            # for tick in ticks:
+            #     self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
                 # for key in tick.keys():
                 #     if isinstance(tick[key], datetime):
                 #         tick[key] = str(tick[key])
@@ -394,7 +395,7 @@ class MainClass:
 
         self._kws.connect()
 
-    def tick(self, ticks):
+    def handle_ticks_safely(self, ticks):
         for index in range(len(ticks)):
             try:
                 if ticks[index]['instrument_token'] not in self._instruments_to_ignore:

@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     for index in range(3000):
         print("index: " + str(index))
-        mc.tick(ticks_list[index])
+        mc.handle_ticks_safely(ticks_list[index])
     with open("/Users/ashutosh.v/Development/market_analysis_data/analysis_nov/summary.pickle", 'wb') as handle:
         pickle.dump(mc.get_summary(), handle)
 
