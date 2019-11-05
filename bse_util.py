@@ -11,12 +11,12 @@ import yaml
 from bs4 import BeautifulSoup
 from dateparser import parse
 
-from general_util import csv_file_with_headers_to_json_arr
+from general_util import csv_file_with_headers_to_json_arr, strptime
 from postgres_io import PostgresIO
 from result_date_object import ResultDate
 from general_util import setup_logger
 
-logger = setup_logger("stock_logger", "bse_util.log", msg_only=True)
+logger = setup_logger("stock_logger", "./bse_util.log", msg_only=True)
 
 def get_bse_url_compatible_date(date_time_obj: datetime):
     return "{}{}{}".format(str(date_time_obj.year).zfill(4), str(date_time_obj.month).zfill(2),
@@ -130,6 +130,22 @@ class BseAnnouncementCrawler:
         url = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w?strCat={}&strPrevDate={}&strScrip=&strSearch=P" \
               "&strToDate={}&strType=C".format("Result", bse_compatible_date, bse_compatible_date)
         return requests.get(url).json()['Table']
+
+    def get_performance_for_date(self, str_date):
+        def parse_info(result) -> dict:
+            captured_time = strptime(result['news_datetime'])
+            announcement_time = result['created_at'].replace(tzinfo=None) + timedelta(hours=5, minutes=30)
+            return {
+                'news_id': result['news_id'],
+                'security_code': result['security_code'],
+                'captured_time': str(captured_time),
+                'announcement_time': str(announcement_time),
+                'delay': str(announcement_time - captured_time)
+            }
+
+        query = "SELECT * FROM bse.bse_announcements WHERE system_readable_date='{}'".format(str_date)
+        announcements_meta = self._postgres.execute([query], fetch_result=True)['result']
+        return sorted(map(parse_info, announcements_meta), key=lambda e: e['delay'], reverse=True)
 
 
 class BseUtil:
@@ -416,7 +432,8 @@ if __name__ == '__main__':
                        "(iii) 3 for getting historical day wise stock prices for instruments under column "
                        "exchange_token in file text_files/instruments.csv\n "
                        "(iv) 4 for updating new bse announcements in db\n"
-                       "(v) 5 for getting company wise latest news\n"))
+                       "(v) 5 for getting company wise latest news\n"
+                       "(v) 6 for getting bse_crawler performance\n"))
 
     with open('./config.yml') as handle:
         config = yaml.load(handle)
@@ -433,5 +450,12 @@ if __name__ == '__main__':
         BseAnnouncementCrawler(postgres, config).refresh()
     elif choice == 5:
         print(BseAnnouncementCrawler(postgres, config).get_company_announcement_map_for_today())
+    elif choice == 6:
+        bse = BseAnnouncementCrawler(postgres, config)
+        target_date = input("date for which you want result: ")
+        target_file = input("json file path to save output: ")
+        result = bse.get_performance_for_date(target_date)
+        with open(target_file, 'w') as handle:
+            json.dump(result, handle, indent=2)
     else:
         print("Choice didn't match any of the valid options. Please try again")
