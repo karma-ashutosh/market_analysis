@@ -14,6 +14,7 @@ from general_util import setup_logger
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
 from kite_trade import place_order
+from kite_enums import Variety, Exchange, PRODUCT, OrderType, VALIDITY
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
@@ -234,7 +235,7 @@ class MarketPosition:
 
 
 class MarketChangeDetector:
-    def __init__(self, window_len, score_functions: ScoreFunctions):
+    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, kite_connect: KiteConnect):
         self._base_filter_func = score_functions.base_filter
         self._long_score_func_list = score_functions.long_score_func_list()
         self._short_score_func_list = score_functions.short_score_func_list()
@@ -255,6 +256,8 @@ class MarketChangeDetector:
         self._position = MarketPosition()
 
         self._trade_completed = False
+        self._kite_connect = kite_connect
+        self._trading_sym = trading_sym
 
     def run(self, market_event):
         # if not self._position.is_trade_done():
@@ -290,15 +293,47 @@ class MarketChangeDetector:
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
                 self._position.enter(market_event, TransactionType.LONG, long_scores)
+                self._execute_kite_trade(market_event, TransactionType.LONG)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             elif self._score_filter_func(short_scores):
                 self._position.enter(market_event, TransactionType.SHORT, short_scores)
+                self._execute_kite_trade(market_event, TransactionType.SHORT)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             else:
                 set_flag_with_base_filter_func()
 
         else:
             set_flag_with_base_filter_func()
+
+    def _execute_kite_trade(self, market_event, transaction_type: TransactionType):
+        if transaction_type == TransactionType.LONG:
+            entry_price = market_event['depth']['sell'][0]['price']
+            kite_transaction_type = "BUY"
+            square_off = entry_price * 1.05
+        else:
+            entry_price = market_event['depth']['buy'][0]['price']
+            kite_transaction_type = "SELL"
+            square_off = entry_price * 0.95
+        stop_loss = entry_price * 0.015
+        trailing_stop_loss = entry_price * 0.01
+
+        open_price = market_event['ohlc']['open']
+        price_diff_percentage = (100 * abs(open_price - entry_price)) / open_price
+        if entry_price > 1500 or price_diff_percentage > 5:
+            print("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
+                  .format(entry_price, price_diff_percentage))
+        else:
+            self._kite_connect.place_order(variety=Variety.BRACKET.value,
+                                           exchange=Exchange.NSE.value,
+                                           tradingsymbol=self._trading_sym,
+                                           transaction_type=kite_transaction_type,
+                                           quantity=1,
+                                           product=PRODUCT.MIS.value,
+                                           order_type=OrderType.LIMIT.value,
+                                           validity=VALIDITY.DAY.value,
+                                           squareoff=square_off, stoploss=stop_loss,
+                                           trailing_stoploss=trailing_stop_loss,
+                                           price=entry_price)
 
     @staticmethod
     def debug_point(current_event_list_view):
@@ -346,7 +381,7 @@ class MainClass:
         def _create_market_change_detector():
             score_func = ScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
                                         self._bse_announcement_crawler)
-            return MarketChangeDetector(15, score_func)
+            return MarketChangeDetector(15, score_func, trading_sym, self._kite_connect)
 
         trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
 
@@ -370,9 +405,9 @@ class MainClass:
             self.handle_ticks_safely(ticks)
             # for tick in ticks:
             #     self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
-                # for key in tick.keys():
-                #     if isinstance(tick[key], datetime):
-                #         tick[key] = str(tick[key])
+            # for key in tick.keys():
+            #     if isinstance(tick[key], datetime):
+            #         tick[key] = str(tick[key])
 
             # stock_logger.info("{}".format(json.dumps(ticks)))
 
