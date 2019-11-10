@@ -190,7 +190,7 @@ class ScoreFunctions:
         return q[-1][key] - q[0][key]
 
     def score_filter(self, score_list: list) -> bool:
-        return all([score > 0 for score in score_list[:-1]]) * sum(score_list) > self._score_sum_threshold
+        return all([score > 0 for score in score_list]) * sum(score_list) > self._score_sum_threshold
 
 
 class MarketPosition:
