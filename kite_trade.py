@@ -25,8 +25,13 @@ def place_order(kite: KiteConnect, trading_symbol):
                      order_type=OrderType.MARKET.value, validity=VALIDITY.DAY.value, squareoff=3.0, stoploss=2.0,
                      trailing_stoploss=1.0, price=70)
 
-    kite.place_order(variety=Variety.BRACKET.value, exchange=Exchange.NSE.value, tradingsymbol='INFY',
-                     transaction_type=TransactionType.BUY.value, quantity=1, product=PRODUCT.MIS.value,
-                     order_type=OrderType.LIMIT.value, validity=VALIDITY.DAY.value, squareoff=3.0, stoploss=2.0,
-                     trailing_stoploss=1.0, price=627)
+    kite.place_order(variety=Variety.BRACKET.value,
+                     exchange=Exchange.NSE.value,
+                     tradingsymbol='INFY',
+                     transaction_type=TransactionType.BUY.value,
+                     quantity=1,
+                     product=PRODUCT.MIS.value,
+                     order_type=OrderType.LIMIT.value,
+                     validity=VALIDITY.DAY.value,
+                     squareoff=3.0, stoploss=2.0, trailing_stoploss=1.0, price=627)
     pass

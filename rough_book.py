@@ -1,7 +1,8 @@
 import pickle
 from datetime import datetime
-
-from stock_trade_script import *
+from kite_enums import Variety, Exchange, TransactionType, PRODUCT, OrderType, VALIDITY
+# from stock_trade_script import *
+from stock_trade_script import MainClass
 
 
 def refresh_id(line):
@@ -32,7 +33,7 @@ def tryf(func, arg):
         return None
 
 
-def get_performance():
+def get_bse_news_crawler_performance():
     lines = [line.strip() for line in open("./bse.log").readlines()]
     processed_lines = [process_line(line) for line in lines]
     result = {}
@@ -52,14 +53,16 @@ def get_performance():
 
 
 if __name__ == '__main__':
-    with open("/Users/ashutosh.v/Development/market_analysis_data/analysis_nov/stock.log.2019-11-01_07.pickle", 'rb') \
-            as handle:
-        ticks_list = pickle.load(handle)
 
     mc = MainClass()
-
-    for index in range(3000):
-        print("index: " + str(index))
-        mc.handle_ticks_safely(ticks_list[index])
-    with open("/Users/ashutosh.v/Development/market_analysis_data/analysis_nov/summary.pickle", 'wb') as handle:
-        pickle.dump(mc.get_summary(), handle)
+    kite = mc._kite_connect
+    kite.place_order(variety=Variety.BRACKET.value,
+                     exchange=Exchange.BSE.value,
+                     tradingsymbol='ICICIBANK',
+                     transaction_type=TransactionType.BUY.value,
+                     quantity=1,
+                     product=PRODUCT.MIS.value,
+                     order_type=OrderType.LIMIT.value,
+                     validity=VALIDITY.DAY.value,
+                     squareoff=3,
+                     stoploss=2.0, trailing_stoploss=1.0, price=470)
