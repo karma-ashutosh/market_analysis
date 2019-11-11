@@ -306,34 +306,37 @@ class MarketChangeDetector:
             set_flag_with_base_filter_func()
 
     def _execute_kite_trade(self, market_event, transaction_type: TransactionType):
-        if transaction_type == TransactionType.LONG:
-            entry_price = market_event['depth']['sell'][0]['price']
-            kite_transaction_type = "BUY"
-            square_off = entry_price * 1.05
-        else:
-            entry_price = market_event['depth']['buy'][0]['price']
-            kite_transaction_type = "SELL"
-            square_off = entry_price * 0.95
-        stop_loss = entry_price * 0.015
-        trailing_stop_loss = entry_price * 0.01
+        try:
+            if transaction_type == TransactionType.LONG:
+                entry_price = market_event['depth']['sell'][0]['price']
+                kite_transaction_type = "BUY"
+                square_off = entry_price * 1.05
+            else:
+                entry_price = market_event['depth']['buy'][0]['price']
+                kite_transaction_type = "SELL"
+                square_off = entry_price * 0.95
+            stop_loss = entry_price * 0.015
+            trailing_stop_loss = entry_price * 0.01
 
-        open_price = market_event['ohlc']['open']
-        price_diff_percentage = (100 * abs(open_price - entry_price)) / open_price
-        if entry_price > 1500 or price_diff_percentage > 5:
-            print("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
-                  .format(entry_price, price_diff_percentage))
-        else:
-            self._kite_connect.place_order(variety=Variety.BRACKET.value,
-                                           exchange=Exchange.NSE.value,
-                                           tradingsymbol=self._trading_sym,
-                                           transaction_type=kite_transaction_type,
-                                           quantity=1,
-                                           product=PRODUCT.MIS.value,
-                                           order_type=OrderType.LIMIT.value,
-                                           validity=VALIDITY.DAY.value,
-                                           squareoff=square_off, stoploss=stop_loss,
-                                           trailing_stoploss=trailing_stop_loss,
-                                           price=entry_price)
+            open_price = market_event['ohlc']['open']
+            price_diff_percentage = (100 * abs(open_price - entry_price)) / open_price
+            if entry_price > 1500 or price_diff_percentage > 5:
+                print("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
+                      .format(entry_price, price_diff_percentage))
+            else:
+                self._kite_connect.place_order(variety=Variety.BRACKET.value,
+                                               exchange=Exchange.NSE.value,
+                                               tradingsymbol=self._trading_sym,
+                                               transaction_type=kite_transaction_type,
+                                               quantity=1,
+                                               product=PRODUCT.MIS.value,
+                                               order_type=OrderType.LIMIT.value,
+                                               validity=VALIDITY.DAY.value,
+                                               squareoff=square_off, stoploss=stop_loss,
+                                               trailing_stoploss=trailing_stop_loss,
+                                               price=entry_price)
+        except:
+            logger.error("error while executing order in kite for market event: {}".format(market_event))
 
     @staticmethod
     def debug_point(current_event_list_view):
