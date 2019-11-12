@@ -240,7 +240,7 @@ class BseResultUpdateUtil:
     @staticmethod
     def format_date_for_code(nse_date_string: str) -> str:
         return nse_date_string.replace('Apr', 'April').replace('Jun', 'June').replace('Jul', 'July') \
-            .replace('Aug', 'August').replace('Oct', 'October')
+            .replace('Aug', 'August').replace('Oct', 'October').replace('Nov', 'November')
 
     def get_insert_json(self, line: str) -> dict:
         print("parsing")
