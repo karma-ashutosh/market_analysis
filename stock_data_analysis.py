@@ -167,7 +167,7 @@ class MarketChangeDetector:
 class PerSecondLatestEventTracker:
     DATETIME_OBJ = 'datetime'
 
-    def __init__(self, window_length_in_seconds: int, keys_to_track: list):
+    def __init__(self, window_length_in_seconds: int, keys_to_track: list, string_date_key: str):
         self.__window_length = window_length_in_seconds
         self.__keys_to_track = keys_to_track
         self.__string_date_key = string_date_key

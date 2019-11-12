@@ -321,9 +321,25 @@ class MarketChangeDetector:
             open_price = market_event['ohlc']['open']
             price_diff_percentage = (100 * abs(open_price - entry_price)) / open_price
             if entry_price > 1500 or price_diff_percentage > 5:
-                print("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
-                      .format(entry_price, price_diff_percentage))
+                logger.info("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
+                            .format(entry_price, price_diff_percentage))
             else:
+                logger.info("Executing trade with params: "
+                            "variety: {}, "
+                            "exchange: {}, "
+                            "tradingsymbol: {}, "
+                            "transaction_type: {}, "
+                            "quantity: {}, "
+                            "product: {}, "
+                            "order_type: {}, "
+                            "validity: {}, "
+                            "squareoff: {}, "
+                            "stoploss: {} "
+                            "trailing_stoploss: {}, "
+                            "price: {}".format(Variety.BRACKET.value, Exchange.NSE.value, self._trading_sym,
+                                               kite_transaction_type, 1, PRODUCT.MIS.value, OrderType.LIMIT.value,
+                                               VALIDITY.DAY.value, square_off, stop_loss, trailing_stop_loss,
+                                               entry_price))
                 self._kite_connect.place_order(variety=Variety.BRACKET.value,
                                                exchange=Exchange.NSE.value,
                                                tradingsymbol=self._trading_sym,
