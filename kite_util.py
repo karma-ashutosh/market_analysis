@@ -41,6 +41,12 @@ class KiteUtil:
             mapping[entry['instrument_token']] = entry['tradingsymbol']
         return mapping
 
+    def map_instrument_ids_to_trading_symbol_security_code(self, instrument_token) -> tuple:
+        query = ["SELECT * FROM {} WHERE instrument_token='{}'".format(self.__instrument_mapping_table, instrument_token)]
+        result = self.__postgres.execute(query, fetch_result=True)['result']
+        entry = result[0]
+        return entry['tradingsymbol'], entry['exchange_token']
+
     def get_nse_counterpart_instrument_results(self, result) -> list:
         trading_symbols = list(map(lambda e: e['tradingsymbol'], result))
         q_bse_by_trading_symbols = ["SELECT * FROM {} WHERE exchange='NSE' and segment = 'NSE' and tradingsymbol in {}"

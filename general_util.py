@@ -332,6 +332,19 @@ def group_dict_array_by_key(func, j_arr):
     print("data grouping completed")
     return result
 
+
+def strptime(val):
+    if '.' not in val:
+        return datetime.strptime(val, "%Y-%m-%dT%H:%M:%S")
+
+    nofrag, frag = val.split(".")
+    date = datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+
+    frag = frag[:6]  # truncate to microseconds
+    frag += (6 - len(frag)) * '0'  # add 0s
+    return date.replace(microsecond=int(frag))
+
+
 class EventThrottler(object):
     """
     Throttles the event
