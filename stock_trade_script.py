@@ -1,9 +1,6 @@
-import json
 import traceback
-from abc import abstractmethod
 from datetime import datetime
 from datetime import timedelta
-from enum import Enum
 from queue import Queue
 
 import yaml
@@ -11,9 +8,10 @@ from kiteconnect import KiteTicker, KiteConnect
 
 from bse_util import BseUtil, BseAnnouncementCrawler
 from general_util import setup_logger
-from kite_enums import Variety, Exchange, PRODUCT, OrderType, VALIDITY
+from kite_enums import TransactionType
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
+from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
@@ -100,11 +98,6 @@ class PerSecondLatestEventTracker:
         marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ] = self.__round_seconds(dt)
 
         return marshaled_event
-
-
-class TransactionType(Enum):
-    SHORT = 1
-    LONG = 2
 
 
 class ScoreFunctions:
@@ -267,12 +260,6 @@ class MarketPosition:
             'score': self._entry_scores,
             'type': str(self._transaction_type)
         }
-
-
-class TradeExecutor:
-    @abstractmethod
-    def execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
-        pass
 
 
 class MarketChangeDetector:
@@ -464,72 +451,6 @@ class MainClass:
             mcd = self._market_change_detector_dict[key]
             summaries[key] = mcd.get_summary()
         return summaries
-
-
-class KiteTradeExecutor(TradeExecutor):
-    def __init__(self, kite_connect: KiteConnect):
-        self._kite_connect = kite_connect
-
-    def execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
-        try:
-            if transaction_type == TransactionType.LONG:
-                entry_price = market_event['depth']['sell'][0]['price']
-                kite_transaction_type = "BUY"
-                square_off = entry_price * 1.05
-            else:
-                entry_price = market_event['depth']['buy'][0]['price']
-                kite_transaction_type = "SELL"
-                square_off = entry_price * 0.95
-            stop_loss = entry_price * 0.015
-            trailing_stop_loss = entry_price * 0.01
-
-            open_price = market_event['ohlc']['open']
-            price_diff_percentage = (100 * abs(open_price - entry_price)) / open_price
-            if entry_price > 1500 or price_diff_percentage > 5:
-                logger.info("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
-                            .format(entry_price, price_diff_percentage))
-            else:
-                logger.info("Executing trade with params: "
-                            "variety: {}, "
-                            "exchange: {}, "
-                            "tradingsymbol: {}, "
-                            "transaction_type: {}, "
-                            "quantity: {}, "
-                            "product: {}, "
-                            "order_type: {}, "
-                            "validity: {}, "
-                            "squareoff: {}, "
-                            "stoploss: {} "
-                            "trailing_stoploss: {}, "
-                            "price: {}".format(Variety.BRACKET.value, Exchange.NSE.value, trading_sym,
-                                               kite_transaction_type, 1, PRODUCT.MIS.value, OrderType.LIMIT.value,
-                                               VALIDITY.DAY.value, square_off, stop_loss, trailing_stop_loss,
-                                               entry_price))
-                self._kite_connect.place_order(variety=Variety.BRACKET.value,
-                                               exchange=Exchange.NSE.value,
-                                               tradingsymbol=trading_sym,
-                                               transaction_type=kite_transaction_type,
-                                               quantity=1,
-                                               product=PRODUCT.MIS.value,
-                                               order_type=OrderType.LIMIT.value,
-                                               validity=VALIDITY.DAY.value,
-                                               squareoff=square_off, stoploss=stop_loss,
-                                               trailing_stoploss=trailing_stop_loss,
-                                               price=entry_price)
-        except:
-            logger.error("error while executing order in kite for market event: {}".format(market_event))
-
-
-class DummyTradeExecutor(TradeExecutor):
-
-    def execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
-        message = {
-            'trade_executor': "DummyTradeExecutor",
-            'trading_sym': trading_sym,
-            'transaction_type': transaction_type,
-            'market_event': str(market_event)
-        }
-        print("Executed trade: {}".format(json.dumps(market_event)))
 
 
 if __name__ == '__main__':

@@ -20,32 +20,32 @@ class MultiEnum(Enum):
         return self._description_
 
 
-class Variety(MultiEnum):
+class KiteVariety(MultiEnum):
     REGULAR = "regular", "Regular Order"
     AFTER_MARKET = "amo","After Market Order"
     BRACKET = "bo", "Bracket Order"
     COVER = "co", "Cover Order"
 
 
-class OrderType(MultiEnum):
+class KiteOrderType(MultiEnum):
     MARKET = "MARKET", "Market Order"
     LIMIT = "LIMIT", "Limit Order"
     STOPLOSS = "SL", "StopLoss Order"
     STOPLOSS_MARKET = "SL-M", "StopLoss Market Order"
 
 
-class PRODUCT(MultiEnum):
+class KitePRODUCT(MultiEnum):
     CNC = "CNC", "CASH N CARRY for equity"
     NORMAL = "NRML", "Normal for futures and options"
     MIS = "MIS", "Margin Intraday Squareoff for futures and options"
 
 
-class VALIDITY(MultiEnum):
+class KiteVALIDITY(MultiEnum):
     DAY = "DAY", "REGULAR ORDER"
     IOC = "IOC", "Immediate or Cancel"
 
 
-class BracketOrderType(MultiEnum):
+class KiteBracketOrderType(MultiEnum):
     SQUARE_OFF = "squareoff", "Price difference at which the order should be squared off and profit booked (eg: Order " \
                               "price is 100. Profit target is 102. So squareoff = 2) "
     STOP_LOSS = "stoploss", "Stoploss difference at which the order should be squared off (eg: Order price is 100. " \
@@ -55,11 +55,13 @@ class BracketOrderType(MultiEnum):
                                               "optional) "
 
 
-class Exchange(Enum):
+class KiteExchange(Enum):
     BSE = "BSE"
     NSE = "NSE"
 
 
 class TransactionType(Enum):
-    BUY = "BUY"
-    SELL = "SELL"
+    SHORT = 1
+    LONG = 2
+
+
