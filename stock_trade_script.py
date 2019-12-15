@@ -1,4 +1,6 @@
+import json
 import traceback
+from abc import abstractmethod
 from datetime import datetime
 from datetime import timedelta
 from enum import Enum
@@ -267,8 +269,14 @@ class MarketPosition:
         }
 
 
+class TradeExecutor:
+    @abstractmethod
+    def execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
+        pass
+
+
 class MarketChangeDetector:
-    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, kite_connect: KiteConnect):
+    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, trade_executor: TradeExecutor):
         self._base_filter_func = score_functions.base_filter
         self._long_score_func_list = score_functions.long_score_func_list()
         self._short_score_func_list = score_functions.short_score_func_list()
@@ -289,8 +297,9 @@ class MarketChangeDetector:
         self._position = MarketPosition()
 
         self._trade_completed = False
-        self._kite_connect = kite_connect
         self._trading_sym = trading_sym
+
+        self._trade_executor = trade_executor
 
     def run(self, market_event):
         if not self._position.is_trade_done():
@@ -303,10 +312,10 @@ class MarketChangeDetector:
     def _try_exiting(self, market_event):
         if self._position.stoploss_triggered() and not self._position.is_trade_done():
             if self._position.enter_transaction_type() == TransactionType.LONG:
-                self._execute_kite_trade(market_event, TransactionType.SHORT)
+                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.SHORT)
                 self._position.exit(market_event)
             else:
-                self._execute_kite_trade(market_event, TransactionType.LONG)
+                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.LONG)
                 self._position.exit(market_event)
 
     def _try_take_position(self, market_event):
@@ -322,11 +331,11 @@ class MarketChangeDetector:
             long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
-                self._execute_kite_trade(market_event, TransactionType.LONG)
+                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.LONG)
                 self._position.enter(market_event, TransactionType.LONG, long_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             elif self._score_filter_func(short_scores):
-                self._execute_kite_trade(market_event, TransactionType.SHORT)
+                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.SHORT)
                 self._position.enter(market_event, TransactionType.SHORT, short_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             else:
@@ -335,7 +344,133 @@ class MarketChangeDetector:
         else:
             set_flag_with_base_filter_func()
 
-    def _execute_kite_trade(self, market_event, transaction_type: TransactionType):
+    @staticmethod
+    def debug_point(current_event_list_view):
+        if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
+                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
+                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
+            x = 0
+
+    def get_filter_event(self, market_event, state: bool):
+        filter_event = {
+            TIMESTAMP: market_event.get(TIMESTAMP),
+            self._filter_pass_key_name: state
+        }
+        return filter_event
+
+    def get_summary(self):
+        return self._position.get_summary()
+
+
+class MainClass:
+    def __init__(self, trade_executor=None):
+        with open('./config.yml') as handle:
+            config = yaml.load(handle)
+        self._postgres = PostgresIO(config['postgres-config'])
+        self._postgres.connect()
+
+        self._bse = BseUtil(config, self._postgres)
+        self._bse_announcement_crawler = BseAnnouncementCrawler(self._postgres, config)
+        self._k_util = KiteUtil(self._postgres, config)
+
+        self._market_stats = self._bse.get_all_stats()
+        self._market_change_detector_dict = {}
+
+        self._instruments_to_fetch = self._get_instruments_to_fetch()
+        self._instruments_to_ignore = set()
+        if trade_executor:
+            self._trade_executor = trade_executor
+        else:
+            self._trade_executor = DummyTradeExecutor()
+
+    def use_kite_trade_executor(self):
+        session_info = self._k_util.get_current_session_info()['result'][0]
+        kite_connect = KiteConnect(session_info['api_key'], session_info['access_token'])
+        self._trade_executor = KiteTradeExecutor(kite_connect)
+
+    def _volume_median_for_instrument_code(self, trading_sym):
+        stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
+        return float(stat['volume_median'])
+
+    def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
+        def _create_market_change_detector():
+            score_func = ScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
+                                        self._bse_announcement_crawler)
+            return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor)
+
+        trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
+
+        if instrument_code not in self._market_change_detector_dict.keys():
+            self._market_change_detector_dict[instrument_code] = _create_market_change_detector()
+
+        return self._market_change_detector_dict[instrument_code]
+
+    def _get_instruments_to_fetch(self):
+        results_for_today = self._bse.get_result_announcement_meta_for_today()
+        results_for_yesterday = self._bse.get_result_announcement_meta_for_yesterday()
+        results_for_today.extend(results_for_yesterday)
+
+        security_codes = list(map(lambda j: j['security_code'], results_for_today))
+        instrument_mapping = self._k_util.map_bse_code_to_instrument_id(security_codes)
+        return [int(v) for v in instrument_mapping.values()]
+
+    def run_with_kite_stream(self):
+        def on_ticks(ws, ticks):
+            # Callback to receive ticks.
+            self.handle_ticks_safely(ticks)
+            # for tick in ticks:
+            #     self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
+            # for key in tick.keys():
+            #     if isinstance(tick[key], datetime):
+            #         tick[key] = str(tick[key])
+
+            # stock_logger.info("{}".format(json.dumps(ticks)))
+
+        def on_connect(ws, response):
+            # Callback on successful connect.
+            # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
+
+            ws.subscribe(self._instruments_to_fetch)
+
+            # Set RELIANCE to tick in `full` mode.
+            ws.set_mode(ws.MODE_FULL, self._instruments_to_fetch)
+
+        def on_close(ws, code, reason):
+            # On connection close stop the main loop
+            # Reconnection will not happen after executing `ws.stop()`
+            ws.stop()
+
+        session_info = self._k_util.get_current_session_info()['result'][0]
+        kws = KiteTicker(session_info['api_key'], session_info['access_token'])
+        kws.on_ticks = on_ticks
+        kws.on_connect = on_connect
+        kws.on_close = on_close
+
+        kws.connect()
+
+    def handle_ticks_safely(self, ticks):
+        for index in range(len(ticks)):
+            try:
+                if ticks[index]['instrument_token'] not in self._instruments_to_ignore:
+                    self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
+            except Exception as e:
+                traceback.print_exc()
+                logger.error("ignoring instrument at instrument_token: {}".format(ticks[index]['instrument_token']))
+                self._instruments_to_ignore.add(ticks[index]['instrument_token'])
+
+    def get_summary(self):
+        summaries = {}
+        for key in self._market_change_detector_dict.keys():
+            mcd = self._market_change_detector_dict[key]
+            summaries[key] = mcd.get_summary()
+        return summaries
+
+
+class KiteTradeExecutor(TradeExecutor):
+    def __init__(self, kite_connect: KiteConnect):
+        self._kite_connect = kite_connect
+
+    def execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
         try:
             if transaction_type == TransactionType.LONG:
                 entry_price = market_event['depth']['sell'][0]['price']
@@ -366,13 +501,13 @@ class MarketChangeDetector:
                             "squareoff: {}, "
                             "stoploss: {} "
                             "trailing_stoploss: {}, "
-                            "price: {}".format(Variety.BRACKET.value, Exchange.NSE.value, self._trading_sym,
+                            "price: {}".format(Variety.BRACKET.value, Exchange.NSE.value, trading_sym,
                                                kite_transaction_type, 1, PRODUCT.MIS.value, OrderType.LIMIT.value,
                                                VALIDITY.DAY.value, square_off, stop_loss, trailing_stop_loss,
                                                entry_price))
                 self._kite_connect.place_order(variety=Variety.BRACKET.value,
                                                exchange=Exchange.NSE.value,
-                                               tradingsymbol=self._trading_sym,
+                                               tradingsymbol=trading_sym,
                                                transaction_type=kite_transaction_type,
                                                quantity=1,
                                                product=PRODUCT.MIS.value,
@@ -384,119 +519,18 @@ class MarketChangeDetector:
         except:
             logger.error("error while executing order in kite for market event: {}".format(market_event))
 
-    @staticmethod
-    def debug_point(current_event_list_view):
-        if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
-                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
-            x = 0
 
-    def get_filter_event(self, market_event, state: bool):
-        filter_event = {
-            TIMESTAMP: market_event.get(TIMESTAMP),
-            self._filter_pass_key_name: state
+class DummyTradeExecutor(TradeExecutor):
+
+    def execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
+        message = {
+            'trade_executor': "DummyTradeExecutor",
+            'trading_sym': trading_sym,
+            'transaction_type': transaction_type,
+            'market_event': str(market_event)
         }
-        return filter_event
-
-    def get_summary(self):
-        return self._position.get_summary()
-
-
-class MainClass:
-    def __init__(self):
-        with open('./config.yml') as handle:
-            config = yaml.load(handle)
-        self._postgres = PostgresIO(config['postgres-config'])
-        self._postgres.connect()
-
-        self._bse = BseUtil(config, self._postgres)
-        self._bse_announcement_crawler = BseAnnouncementCrawler(self._postgres, config)
-        self._k_util = KiteUtil(self._postgres, config)
-
-        self._market_stats = self._bse.get_all_stats()
-        self._market_change_detector_dict = {}
-
-        session_info = self._k_util.get_current_session_info()['result'][0]
-        self._instruments_to_fetch = self._get_instruments_to_fetch()
-        self._kws = KiteTicker(session_info['api_key'], session_info['access_token'])
-        self._instruments_to_ignore = set()
-        self._kite_connect = KiteConnect(session_info['api_key'], session_info['access_token'])
-
-    def _volume_median_for_instrument_code(self, trading_sym):
-        stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
-        return float(stat['volume_median'])
-
-    def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
-        def _create_market_change_detector():
-            score_func = ScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
-                                        self._bse_announcement_crawler)
-            return MarketChangeDetector(15, score_func, trading_sym, self._kite_connect)
-
-        trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
-
-        if instrument_code not in self._market_change_detector_dict.keys():
-            self._market_change_detector_dict[instrument_code] = _create_market_change_detector()
-
-        return self._market_change_detector_dict[instrument_code]
-
-    def _get_instruments_to_fetch(self):
-        results_for_today = self._bse.get_result_announcement_meta_for_today()
-        results_for_yesterday = self._bse.get_result_announcement_meta_for_yesterday()
-        results_for_today.extend(results_for_yesterday)
-
-        security_codes = list(map(lambda j: j['security_code'], results_for_today))
-        instrument_mapping = self._k_util.map_bse_code_to_instrument_id(security_codes)
-        return [int(v) for v in instrument_mapping.values()]
-
-    def run(self):
-        def on_ticks(ws, ticks):
-            # Callback to receive ticks.
-            self.handle_ticks_safely(ticks)
-            # for tick in ticks:
-            #     self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
-            # for key in tick.keys():
-            #     if isinstance(tick[key], datetime):
-            #         tick[key] = str(tick[key])
-
-            # stock_logger.info("{}".format(json.dumps(ticks)))
-
-        def on_connect(ws, response):
-            # Callback on successful connect.
-            # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
-
-            ws.subscribe(self._instruments_to_fetch)
-
-            # Set RELIANCE to tick in `full` mode.
-            ws.set_mode(ws.MODE_FULL, self._instruments_to_fetch)
-
-        def on_close(ws, code, reason):
-            # On connection close stop the main loop
-            # Reconnection will not happen after executing `ws.stop()`
-            ws.stop()
-
-        self._kws.on_ticks = on_ticks
-        self._kws.on_connect = on_connect
-        self._kws.on_close = on_close
-
-        self._kws.connect()
-
-    def handle_ticks_safely(self, ticks):
-        for index in range(len(ticks)):
-            try:
-                if ticks[index]['instrument_token'] not in self._instruments_to_ignore:
-                    self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
-            except Exception as e:
-                traceback.print_exc()
-                logger.error("ignoring instrument at instrument_token: {}".format(ticks[index]['instrument_token']))
-                self._instruments_to_ignore.add(ticks[index]['instrument_token'])
-
-    def get_summary(self):
-        summaries = {}
-        for key in self._market_change_detector_dict.keys():
-            mcd = self._market_change_detector_dict[key]
-            summaries[key] = mcd.get_summary()
-        return summaries
+        print("Executed trade: {}".format(json.dumps(market_event)))
 
 
 if __name__ == '__main__':
-    MainClass().run()
+    MainClass().run_with_kite_stream()
