@@ -1,20 +1,17 @@
-import json
+import traceback
 from datetime import datetime
 from datetime import timedelta
 from enum import Enum
 from queue import Queue
-import traceback
 
 import yaml
 from kiteconnect import KiteTicker, KiteConnect
 
 from bse_util import BseUtil, BseAnnouncementCrawler
-from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import setup_logger
+from kite_enums import Variety, Exchange, PRODUCT, OrderType, VALIDITY
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
-from kite_trade import place_order
-from kite_enums import Variety, Exchange, PRODUCT, OrderType, VALIDITY
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
@@ -195,16 +192,46 @@ class ScoreFunctions:
 
 
 class MarketPosition:
-    def __init__(self):
+    def __init__(self, stop_loss_threshold, stop_loss_update_threshold):
         self._entry_scores = None
         self._entry_event = None
         self._exit_event = None
         self._transaction_type = None
         self._took_position = False
         self._trade_completed = False
+        self._entry_price = None
+        self._last_favourable_price = None
+        self._stop_loss_threshold = stop_loss_threshold
+        self._stop_loss_update_threshold = stop_loss_update_threshold
+        self._stop_loss_triggered = False
+
+    @staticmethod
+    def __price(event):
+        return event[LAST_PRICE]
+
+    def consume_event(self, market_event):
+        event_price = self.__price(market_event)
+        if self._transaction_type == TransactionType.LONG:
+            self._update_values_for_long(event_price)
+        else:
+            self._update_values_for_short(event_price)
+
+    def _update_values_for_short(self, event_price):
+        if event_price <= self._last_favourable_price - self._stop_loss_update_threshold:
+            self._last_favourable_price = event_price
+        elif event_price >= self._last_favourable_price + self._stop_loss_threshold:
+            self._stop_loss_triggered = True
+
+    def _update_values_for_long(self, event_price):
+        if event_price >= self._last_favourable_price + self._stop_loss_update_threshold:
+            self._last_favourable_price = event_price
+        elif event_price <= self._last_favourable_price - self._stop_loss_threshold:
+            self._stop_loss_triggered = True
 
     def enter(self, entry_event, transaction_type: TransactionType, scores: list):
         self._entry_event = entry_event
+        self._entry_price = self.__price(entry_event)
+        self._last_favourable_price = self._entry_price
         self._transaction_type = transaction_type
         self._entry_scores = scores
         self._took_position = True
@@ -224,6 +251,12 @@ class MarketPosition:
 
     def is_trade_done(self):
         return self._trade_completed
+
+    def stoploss_triggered(self):
+        return self._stop_loss_triggered
+
+    def enter_transaction_type(self):
+        return self._transaction_type
 
     def get_summary(self):
         return {
@@ -260,23 +293,20 @@ class MarketChangeDetector:
         self._trading_sym = trading_sym
 
     def run(self, market_event):
-        # if not self._position.is_trade_done():
-        #     if not self._position._took_position:
-        #         self._try_take_position(market_event)
-        #     else:
-        #         self._try_exiting(market_event)
-        if not self._position._took_position:
-            self._try_take_position(market_event)
+        if not self._position.is_trade_done():
+            if not self._position._took_position:
+                self._try_take_position(market_event)
+            else:
+                self._position.consume_event(market_event)
+                self._try_exiting(market_event)
 
     def _try_exiting(self, market_event):
-        entry_price = self._position.entry_price()
-        diff = market_event[LAST_PRICE] - entry_price
-        abs_change = diff if diff > 0 else diff * -1
-        if self._position.is_profitable_diff(diff):
-            if abs_change > entry_price * self._profit_limit:
+        if self._position.stoploss_triggered() and not self._position.is_trade_done():
+            if self._position.enter_transaction_type() == TransactionType.LONG:
+                self._execute_kite_trade(market_event, TransactionType.SHORT)
                 self._position.exit(market_event)
-        else:
-            if abs_change > entry_price * self._loss_limit:
+            else:
+                self._execute_kite_trade(market_event, TransactionType.LONG)
                 self._position.exit(market_event)
 
     def _try_take_position(self, market_event):
@@ -292,12 +322,12 @@ class MarketChangeDetector:
             long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
-                self._position.enter(market_event, TransactionType.LONG, long_scores)
                 self._execute_kite_trade(market_event, TransactionType.LONG)
+                self._position.enter(market_event, TransactionType.LONG, long_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             elif self._score_filter_func(short_scores):
-                self._position.enter(market_event, TransactionType.SHORT, short_scores)
                 self._execute_kite_trade(market_event, TransactionType.SHORT)
+                self._position.enter(market_event, TransactionType.SHORT, short_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             else:
                 set_flag_with_base_filter_func()
@@ -466,9 +496,6 @@ class MainClass:
             mcd = self._market_change_detector_dict[key]
             summaries[key] = mcd.get_summary()
         return summaries
-
-    def place_order(self, stock_code):
-        place_order(self._kite_connect, stock_code)
 
 
 if __name__ == '__main__':
