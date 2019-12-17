@@ -59,14 +59,21 @@ if __name__ == '__main__':
     with open(stat_file) as handle:
         stats = json.load(handle)
 
-    summary_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
     names = list(map(lambda j_elem: j_elem['file_name'], summary_arr))
+
+    summary_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
+
+    def get_result_time(symbol):
+        time_elem = list(filter(lambda j_elem: j_elem['file_name'] == symbol, summary_arr))
+        if len(time_elem) != 1:
+            raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
+        return datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%Y-%m-%d %H:%M:%S')
 
     results = {}
 
     file_names_to_process = ["3MINDIA.csv", "AAVAS.csv"]
     for name in file_names_to_process:
-        main_class = MainClass()
+        main_class = MainClass(simulation=True)
         event_emitter = MarketEventEmitter(file_name=name)
         counter = 0
         try:

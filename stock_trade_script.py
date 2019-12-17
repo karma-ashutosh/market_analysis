@@ -12,6 +12,7 @@ from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
+from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
 from score_functions import ScoreFunctions, BaseScoreFunctions
 from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor
 
@@ -251,7 +252,7 @@ class MarketChangeDetector:
 
 
 class MainClass:
-    def __init__(self, trade_executor=None):
+    def __init__(self, simulation=True):
         with open('./config.yml') as handle:
             config = yaml.load(handle)
         self._postgres = PostgresIO(config['postgres-config'])
@@ -266,10 +267,12 @@ class MainClass:
 
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._instruments_to_ignore = set()
-        if trade_executor:
-            self._trade_executor = trade_executor
+        if not simulation:
+            self.use_kite_trade_executor()
+            self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
         else:
             self._trade_executor = DummyTradeExecutor()
+            self._result_time_provider = SummaryFileBasedResultTimeProvider("../market_analysis_data/summary.csv")
 
     def use_kite_trade_executor(self):
         session_info = self._k_util.get_current_session_info()['result'][0]
@@ -283,7 +286,7 @@ class MainClass:
     def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
         def _create_market_change_detector():
             score_func = BaseScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
-                                            self._bse_announcement_crawler)
+                                            self._result_time_provider)
 
             return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor)
 

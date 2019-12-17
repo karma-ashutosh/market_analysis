@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from datetime import datetime
 
-from bse_util import BseAnnouncementCrawler
 from constants import VOLUME, LAST_PRICE, BUY_QUANTITY, SELL_QUANTITY, KITE_EVENT_DATETIME_OBJ
+from result_time_provider import ResultTimeProvider
 
 
 class ScoreFunctions:
@@ -21,17 +21,14 @@ class ScoreFunctions:
 
 class BaseScoreFunctions(ScoreFunctions):
     def __init__(self, volume_median, price_percentage_diff_threshold, security_code,
-                 bse_announcement_crawler: BseAnnouncementCrawler):
+                 result_time_provider: ResultTimeProvider):
         self._price_percentage_diff_threshold = price_percentage_diff_threshold
         self._base_filter_volume_threshold = self._get_vol_threshold(volume_median, 6 * 60 * 60)
         self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
         self._score_sum_threshold = 4
         self._market_open_time = datetime.now().replace(hour=9, minute=15, second=0)
         self._security_code = security_code
-        self._bse_announcement_crawler = bse_announcement_crawler
-
-    def _update_result_time(self):
-        self._bse_announcement_crawler.get_company_announcement_map_for_today()
+        self._result_time_provider = result_time_provider
 
     def long_score_func_list(self):
         return [self._volume_score_function, self._long_price_quantity_score, self._result_score]
@@ -67,7 +64,7 @@ class BaseScoreFunctions(ScoreFunctions):
         return score
 
     def _result_score(self, q: list) -> int:
-        result_time = self._bse_announcement_crawler.get_latest_result_time_for_security_code(self._security_code)
+        result_time = self._result_time_provider.get_latest_result_time(self._security_code)
         q_time = q[-1][KITE_EVENT_DATETIME_OBJ]
         td = q_time - result_time
         return (0 <= td.total_seconds() < 10 * 60) * 2
