@@ -5,7 +5,7 @@ from queue import Queue
 
 from datetime import timedelta
 
-from constants import KITE_EVENT_DATETIME_OBJ
+from constants import KITE_EVENT_DATETIME_OBJ, TIMESTAMP
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from stock_trade_script import MainClass
 
@@ -49,7 +49,7 @@ class MarketEventEmitter:
         event[VOLUME] = float(event[VOLUME])
         current_event_time = event[string_date_key]
         dt = datetime.strptime(current_event_time, '%Y-%m-%d %H:%M:%S')
-        event[KITE_EVENT_DATETIME_OBJ] = dt
+        event[TIMESTAMP] = dt
         return event
 
 
