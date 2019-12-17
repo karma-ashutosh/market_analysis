@@ -1,5 +1,4 @@
 import traceback
-from datetime import datetime
 from datetime import timedelta
 from queue import Queue
 
@@ -7,33 +6,20 @@ import yaml
 from kiteconnect import KiteTicker, KiteConnect
 
 from bse_util import BseUtil, BseAnnouncementCrawler
+from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
+    KITE_EVENT_DATETIME_OBJ
 from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
+from score_functions import ScoreFunctions, BaseScoreFunctions
 from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
 
-EMPTY_KEY = ''
-
-TIMESTAMP = 'timestamp'
-
-LAST_PRICE = 'last_price'
-
-LAST_TRADE_TIME = 'last_trade_time'
-
-SELL_QUANTITY = 'sell_quantity'
-
-BUY_QUANTITY = 'buy_quantity'
-
-VOLUME = 'volume'
-
 
 class PerSecondLatestEventTracker:
-    DATETIME_OBJ = 'datetime'
-
     def __init__(self, window_length_in_seconds: int, keys_to_track: list):
         self.__window_length = window_length_in_seconds
         self.__keys_to_track = keys_to_track
@@ -69,8 +55,8 @@ class PerSecondLatestEventTracker:
 
     @staticmethod
     def __get_seconds_gap_from_last_received_event(last_element, marshaled_event):
-        last_dt = last_element[PerSecondLatestEventTracker.DATETIME_OBJ]
-        curr_dt = marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ]
+        last_dt = last_element[KITE_EVENT_DATETIME_OBJ]
+        curr_dt = marshaled_event[KITE_EVENT_DATETIME_OBJ]
         td = curr_dt - last_dt
         seconds_gap = int(td.total_seconds())
         return seconds_gap
@@ -95,95 +81,9 @@ class PerSecondLatestEventTracker:
         self.__overwrite_event(marshaled_event, json_event)
 
         dt = json_event[TIMESTAMP]
-        marshaled_event[PerSecondLatestEventTracker.DATETIME_OBJ] = self.__round_seconds(dt)
+        marshaled_event[KITE_EVENT_DATETIME_OBJ] = self.__round_seconds(dt)
 
         return marshaled_event
-
-
-class ScoreFunctions:
-    def __init__(self, volume_median, price_percentage_diff_threshold, security_code,
-                 bse_announcement_crawler: BseAnnouncementCrawler):
-        self._price_percentage_diff_threshold = price_percentage_diff_threshold
-        self._base_filter_volume_threshold = self.get_vol_threshold(volume_median, 6 * 60 * 60)
-        self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
-        self._score_sum_threshold = 4
-        self._market_open_time = datetime.now().replace(hour=9, minute=15, second=0)
-        self._security_code = security_code
-        self._bse_announcement_crawler = bse_announcement_crawler
-
-    def _update_result_time(self):
-        self._bse_announcement_crawler.get_company_announcement_map_for_today()
-
-    def long_score_func_list(self):
-        return [self.volume_score_function, self.long_price_quantity_score, self.result_score]
-
-    def short_score_func_list(self):
-        return [self.volume_score_function, self.short_price_quantity_score, self.result_score]
-
-    def base_filter(self, q: list) -> bool:
-        start_end_vol_diff = self.start_end_diff(q, VOLUME)
-        oldest_elem = q[0]
-        oldest_elem_time = oldest_elem[PerSecondLatestEventTracker.DATETIME_OBJ]
-        seconds_till_now = (oldest_elem_time - self._market_open_time).total_seconds()
-
-        if seconds_till_now > 2 * 60 * 60:
-            moving_vol_threshold = self.get_vol_threshold(oldest_elem[VOLUME], seconds_till_now)
-            if moving_vol_threshold > self._base_filter_volume_threshold:
-                self._base_filter_volume_threshold = moving_vol_threshold
-                self._vol_diff_threshold_at_second_level = self._base_filter_volume_threshold / 12
-
-        return start_end_vol_diff > self._base_filter_volume_threshold
-
-    @staticmethod
-    def get_vol_threshold(vol_till_now, seconds_till_now):
-        total_15_sec_slots = seconds_till_now / 15
-        per_15_sec_slot_vol = vol_till_now / total_15_sec_slots
-        return per_15_sec_slot_vol * 20
-
-    def volume_score_function(self, q: list) -> int:
-        score = 0
-        for i in range(1, 5):
-            score = score + 1 if q[-i][VOLUME] - q[-i - 1][VOLUME] > self._vol_diff_threshold_at_second_level \
-                else score
-        return score
-
-    def result_score(self, q: list) -> int:
-        result_time = self._bse_announcement_crawler.get_latest_result_time_for_security_code(self._security_code)
-        q_time = q[-1][PerSecondLatestEventTracker.DATETIME_OBJ]
-        td = q_time - result_time
-        return (0 <= td.total_seconds() < 10 * 60) * 2
-
-    def long_price_quantity_score(self, q: list) -> int:
-        price_diff = self.start_end_diff(q, LAST_PRICE)
-        buy_quantity_diff = self.start_end_diff(q, BUY_QUANTITY)
-        sell_quantity_diff = self.start_end_diff(q, SELL_QUANTITY)
-
-        score = 0
-        if price_diff > 0 and self.price_diff_threshold_breached(price_diff, q):
-            score = score + 1 if buy_quantity_diff > 0 else score
-            score = score + 1 if sell_quantity_diff < 0 else score
-        return score
-
-    def short_price_quantity_score(self, q: list) -> int:
-        price_diff = self.start_end_diff(q, LAST_PRICE)
-        buy_quantity_diff = self.start_end_diff(q, BUY_QUANTITY)
-        sell_quantity_diff = self.start_end_diff(q, SELL_QUANTITY)
-
-        score = 0
-        if price_diff < 0 and self.price_diff_threshold_breached(price_diff, q):
-            score = score + 1 if buy_quantity_diff < 0 else score
-            score = score + 1 if sell_quantity_diff > 0 else score
-        return score
-
-    def price_diff_threshold_breached(self, price_diff, q):
-        return abs(price_diff) > (self._price_percentage_diff_threshold * q[0][LAST_PRICE]) / 100
-
-    @staticmethod
-    def start_end_diff(q, key):
-        return q[-1][key] - q[0][key]
-
-    def score_filter(self, score_list: list) -> bool:
-        return all([score > 0 for score in score_list]) * sum(score_list) > self._score_sum_threshold
 
 
 class MarketPosition:
@@ -267,7 +167,9 @@ class MarketChangeDetector:
         self._base_filter_func = score_functions.base_filter
         self._long_score_func_list = score_functions.long_score_func_list()
         self._short_score_func_list = score_functions.short_score_func_list()
-        self._score_filter_func = score_functions.score_filter
+        self._score_sum_threshold = 4
+        self._score_filter_func = lambda score_list: \
+            all([score > 0 for score in score_list]) * sum(score_list) > self._score_sum_threshold
 
         keys_to_track = [EMPTY_KEY, TIMESTAMP, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME,
                          LAST_PRICE]
@@ -333,9 +235,9 @@ class MarketChangeDetector:
 
     @staticmethod
     def debug_point(current_event_list_view):
-        if current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].hour == 14 \
-                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].minute == 54 \
-                and current_event_list_view[-1][PerSecondLatestEventTracker.DATETIME_OBJ].second == 7:
+        if current_event_list_view[-1][KITE_EVENT_DATETIME_OBJ].hour == 14 \
+                and current_event_list_view[-1][KITE_EVENT_DATETIME_OBJ].minute == 54 \
+                and current_event_list_view[-1][KITE_EVENT_DATETIME_OBJ].second == 7:
             x = 0
 
     def get_filter_event(self, market_event, state: bool):
@@ -381,8 +283,9 @@ class MainClass:
 
     def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
         def _create_market_change_detector():
-            score_func = ScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
-                                        self._bse_announcement_crawler)
+            score_func = BaseScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
+                                            self._bse_announcement_crawler)
+
             return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor)
 
         trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
@@ -402,6 +305,9 @@ class MainClass:
         return [int(v) for v in instrument_mapping.values()]
 
     def run_with_kite_stream(self):
+        if not isinstance(self._trade_executor, KiteTradeExecutor):
+            raise Exception("To run with kite stream, trade executor has to be of type KiteTradeExecutor")
+
         def on_ticks(ws, ticks):
             # Callback to receive ticks.
             self.handle_ticks_safely(ticks)

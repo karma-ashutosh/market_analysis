@@ -1,6 +1,8 @@
 from enum import Enum
 
 
+
+
 class MultiEnum(Enum):
     def __new__(cls, *args, **kwds):
         obj = object.__new__(cls)
