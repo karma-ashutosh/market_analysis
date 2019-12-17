@@ -31,7 +31,7 @@ class MarketEventEmitter:
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
             map(lambda j_elem: self.__remove_keys(j_elem,
-                                                  ['depth', 'Unnamed', 'instrument_token', 'mode', 'ohlc', 'oi_day',
+                                                  ['depth', 'Unnamed', 'mode', 'ohlc', 'oi_day',
                                                    'tradable','delta','average_price','oi','change']), j_arr))
         self.__event_iter = iter(self.__event_list)
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     results = {}
 
-    file_names_to_process = ["file1.csv", "file2.csv"]
+    file_names_to_process = ["3MINDIA.csv", "AAVAS.csv"]
     for name in file_names_to_process:
         main_class = MainClass()
         event_emitter = MarketEventEmitter(file_name=name)
