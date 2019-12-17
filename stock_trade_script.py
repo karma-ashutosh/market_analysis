@@ -182,7 +182,7 @@ class MarketChangeDetector:
         self._profit_limit = 0.01
         self._loss_limit = 0.01
 
-        self._position = MarketPosition()
+        self._position = MarketPosition(2, 1)
 
         self._trade_completed = False
         self._trading_sym = trading_sym
