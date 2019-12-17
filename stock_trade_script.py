@@ -15,7 +15,6 @@ from postgres_io import PostgresIO
 from score_functions import ScoreFunctions, BaseScoreFunctions
 from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor
 
-stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
 
 
