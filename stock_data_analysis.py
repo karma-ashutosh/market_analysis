@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from enum import Enum
 from queue import Queue
-
+from general_util import map_with_percentage_progress
 from datetime import timedelta
 
 from constants import KITE_EVENT_DATETIME_OBJ, TIMESTAMP
@@ -25,10 +25,10 @@ string_date_key = 'timestamp'
 
 
 class MarketEventEmitter:
-    def __init__(self, file_name='spicejet.csv'):
+    def __init__(self, file_name):
         base_path = '../market_analysis_data/csv_files/'
 
-        j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
+        j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)[-100:]
         self.__event_list = list(
             map(lambda j_elem: self.__remove_keys(j_elem,
                                                   ['depth', 'Unnamed', 'mode', 'ohlc', 'oi_day',
@@ -55,35 +55,22 @@ class MarketEventEmitter:
 
 if __name__ == '__main__':
 
-    stat_file = "../market_analysis_data/stock_stats/combined_stats.json"
-    with open(stat_file) as handle:
-        stats = json.load(handle)
-
-    names = list(map(lambda j_elem: j_elem['file_name'], summary_arr))
-
-    summary_arr = csv_file_with_headers_to_json_arr("../market_analysis_data/summary.csv")
-
-    def get_result_time(symbol):
-        time_elem = list(filter(lambda j_elem: j_elem['file_name'] == symbol, summary_arr))
-        if len(time_elem) != 1:
-            raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
-        return datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%Y-%m-%d %H:%M:%S')
-
     results = {}
 
-    file_names_to_process = ["3MINDIA.csv", "AAVAS.csv"]
+    file_names_to_process = ["3MINDIA.csv"]
     for name in file_names_to_process:
         main_class = MainClass(simulation=True)
         event_emitter = MarketEventEmitter(file_name=name)
-        counter = 0
-        try:
-            while True:
-                event = event_emitter.emit()
-                main_class.handle_ticks_safely([event])
-                counter = counter + 1
-        except Exception as e:
-            print("caught exception after processing {} lines for file: {}".format(counter, name))
+        events = []
+        while True:
+            try:
+                events.append(event_emitter.emit())
+            except:
+                x = 0
+                break
 
+        print("Total number of events are: {}".format(len(events)))
+        map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
         results[name] = main_class.get_summary()
 
     with open("/tmp/market_simulation_summary.json", 'w') as handle:
