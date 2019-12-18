@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod
 
 from kiteconnect import KiteConnect
@@ -71,7 +72,7 @@ class DummyTradeExecutor(TradeExecutor):
         message = {
             'trade_executor': "DummyTradeExecutor",
             'trading_sym': trading_sym,
-            'transaction_type': transaction_type,
+            'transaction_type': transaction_type.value,
             'market_event': str(market_event)
         }
         print("Executed trade: {}".format(json.dumps(message)))

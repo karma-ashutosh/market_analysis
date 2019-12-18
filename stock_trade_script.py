@@ -7,15 +7,15 @@ from kiteconnect import KiteTicker, KiteConnect
 
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
-    KITE_EVENT_DATETIME_OBJ
+    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN
 from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
+from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
 from score_functions import ScoreFunctions, BaseScoreFunctions
 from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor
 
-stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 logger = setup_logger("msg_logger", "./app.log")
 
 
@@ -158,12 +158,13 @@ class MarketPosition:
             'entry': self._entry_event,
             'exit': self._exit_event,
             'score': self._entry_scores,
-            'type': str(self._transaction_type)
+            'type': self._transaction_type.value
         }
 
 
 class MarketChangeDetector:
-    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, trade_executor: TradeExecutor):
+    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, trade_executor: TradeExecutor,
+                 stop_loss_threshold, stop_loss_minimium_change_threshold):
         self._base_filter_func = score_functions.base_filter
         self._long_score_func_list = score_functions.long_score_func_list()
         self._short_score_func_list = score_functions.short_score_func_list()
@@ -183,7 +184,7 @@ class MarketChangeDetector:
         self._profit_limit = 0.01
         self._loss_limit = 0.01
 
-        self._position = MarketPosition()
+        self._position = MarketPosition(stop_loss_threshold, stop_loss_minimium_change_threshold)
 
         self._trade_completed = False
         self._trading_sym = trading_sym
@@ -252,7 +253,7 @@ class MarketChangeDetector:
 
 
 class MainClass:
-    def __init__(self, trade_executor=None):
+    def __init__(self, simulation=True):
         with open('./config.yml') as handle:
             config = yaml.load(handle)
         self._postgres = PostgresIO(config['postgres-config'])
@@ -267,10 +268,12 @@ class MainClass:
 
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._instruments_to_ignore = set()
-        if trade_executor:
-            self._trade_executor = trade_executor
+        if not simulation:
+            self.use_kite_trade_executor()
+            self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
         else:
             self._trade_executor = DummyTradeExecutor()
+            self._result_time_provider = SummaryFileBasedResultTimeProvider("../market_analysis_data/summary.csv")
 
     def use_kite_trade_executor(self):
         session_info = self._k_util.get_current_session_info()['result'][0]
@@ -281,13 +284,16 @@ class MainClass:
         stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
         return float(stat['volume_median'])
 
-    def _get_market_change_detector(self, instrument_code) -> MarketChangeDetector:
+    def _get_market_change_detector(self, tick) -> MarketChangeDetector:
         def _create_market_change_detector():
             score_func = BaseScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
-                                            self._bse_announcement_crawler)
+                                            self._result_time_provider)
+            last_price = tick[LAST_PRICE]
+            stop_loss = last_price * 0.015
+            stop_loss_update_min_change_threshold = last_price * 0.01
+            return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor, stop_loss, stop_loss_update_min_change_threshold)
 
-            return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor)
-
+        instrument_code = tick[INSTRUMENT_TOKEN]
         trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
 
         if instrument_code not in self._market_change_detector_dict.keys():
@@ -312,7 +318,7 @@ class MainClass:
             # Callback to receive ticks.
             self.handle_ticks_safely(ticks)
             # for tick in ticks:
-            #     self._get_market_change_detector(str(tick['instrument_token'])).run(tick)
+            #     self._get_market_change_detector(str(tick[INSTRUMENT_TOKEN])).run(tick)
             # for key in tick.keys():
             #     if isinstance(tick[key], datetime):
             #         tick[key] = str(tick[key])
@@ -344,12 +350,12 @@ class MainClass:
     def handle_ticks_safely(self, ticks):
         for index in range(len(ticks)):
             try:
-                if ticks[index]['instrument_token'] not in self._instruments_to_ignore:
-                    self._get_market_change_detector(str(ticks[index]['instrument_token'])).run(ticks[index])
+                if ticks[index][INSTRUMENT_TOKEN] not in self._instruments_to_ignore:
+                    self._get_market_change_detector(ticks[index]).run(ticks[index])
             except Exception as e:
                 traceback.print_exc()
-                logger.error("ignoring instrument at instrument_token: {}".format(ticks[index]['instrument_token']))
-                self._instruments_to_ignore.add(ticks[index]['instrument_token'])
+                logger.error("ignoring instrument at instrument_token: {}".format(ticks[index][INSTRUMENT_TOKEN]))
+                self._instruments_to_ignore.add(ticks[index][INSTRUMENT_TOKEN])
 
     def get_summary(self):
         summaries = {}
