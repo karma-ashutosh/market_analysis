@@ -28,7 +28,7 @@ class MarketEventEmitter:
     def __init__(self, file_name):
         base_path = '../market_analysis_data/csv_files/'
 
-        j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)[-100:]
+        j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
             map(lambda j_elem: self.__remove_keys(j_elem,
                                                   ['depth', 'Unnamed', 'mode', 'ohlc', 'oi_day',

@@ -64,7 +64,6 @@ class BaseScoreFunctions(ScoreFunctions):
         return score
 
     def _result_score(self, q: list) -> int:
-        print("getting result time against: {}".format(self._security_code))
         result_time = self._result_time_provider.get_latest_result_time(self._security_code)
         q_time = q[-1][KITE_EVENT_DATETIME_OBJ]
         td = q_time - result_time

@@ -10,6 +10,7 @@ class KiteUtil:
         self.__config = config
         self.__instrument_mapping_table = config['kite_config']['instrument_mapping_table']
         self.__session_info_table = config['kite_config']['session_info_table']
+        self._instrument_id_to_security_code_cache = {}
 
     def update_token(self):
         api_key = "h0e1gcxywukd7pzf"
@@ -42,10 +43,12 @@ class KiteUtil:
         return mapping
 
     def map_instrument_ids_to_trading_symbol_security_code(self, instrument_token) -> tuple:
-        query = ["SELECT * FROM {} WHERE instrument_token='{}'".format(self.__instrument_mapping_table, instrument_token)]
-        result = self.__postgres.execute(query, fetch_result=True)['result']
-        entry = result[0]
-        return entry['tradingsymbol'], entry['exchange_token']
+        if instrument_token not in self._instrument_id_to_security_code_cache.keys():
+            query = ["SELECT * FROM {} WHERE instrument_token='{}'".format(self.__instrument_mapping_table, instrument_token)]
+            result = self.__postgres.execute(query, fetch_result=True)['result']
+            entry = result[0]
+            self._instrument_id_to_security_code_cache[instrument_token] = (entry['tradingsymbol'], entry['exchange_token'])
+        return self._instrument_id_to_security_code_cache[instrument_token]
 
     def get_nse_counterpart_instrument_results(self, result) -> list:
         trading_symbols = list(map(lambda e: e['tradingsymbol'], result))

@@ -158,7 +158,7 @@ class MarketPosition:
             'entry': self._entry_event,
             'exit': self._exit_event,
             'score': self._entry_scores,
-            'type': str(self._transaction_type)
+            'type': self._transaction_type.value
         }
 
 
