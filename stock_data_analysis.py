@@ -55,7 +55,7 @@ class MarketEventEmitter:
 
 if __name__ == '__main__':
 
-    results = {}
+    results = []
 
     file_names_to_process = ["3MINDIA.csv"]
     for name in file_names_to_process:
@@ -71,9 +71,15 @@ if __name__ == '__main__':
 
         print("Total number of events are: {}".format(len(events)))
         map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
-        results[name] = main_class.get_summary()
+        summary = main_class.get_summary()
+        summary['file_name'] = name
+        results.append(summary)
 
-    with open("/tmp/market_simulation_summary.json", 'w') as handle:
-        json.dump(results, handle, indent=2)
+    csv_file_path = "../market_analysis_data/simulation_result.csv"
+    flat_j_arr = [flatten(j_elem) for j_elem in results]
 
-
+    for j_elem in flat_j_arr:
+        for key in j_elem.keys():
+            if isinstance(j_elem[key], datetime):
+                j_elem[key] = str(j_elem[key])
+    json_arr_to_csv(flat_j_arr, csv_file_path)
