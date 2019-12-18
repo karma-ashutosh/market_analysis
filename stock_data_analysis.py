@@ -1,12 +1,8 @@
-import json
 from datetime import datetime
-from enum import Enum
-from queue import Queue
-from general_util import map_with_percentage_progress
-from datetime import timedelta
 
-from constants import KITE_EVENT_DATETIME_OBJ, TIMESTAMP
+from constants import TIMESTAMP
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
+from general_util import map_with_percentage_progress
 from stock_trade_script import MainClass
 
 EMPTY_KEY = ''
