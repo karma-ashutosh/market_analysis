@@ -70,6 +70,7 @@ if __name__ == '__main__':
         print("Total number of events are: {}".format(len(events)))
         map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
         summary = main_class.get_summary()
+        summary = list(summary.values())[0]
         summary['file_name'] = name
         results.append(summary)
 
