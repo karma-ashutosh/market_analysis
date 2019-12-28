@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bse_util import BseAnnouncementCrawler
 from general_util import csv_file_with_headers_to_json_arr
@@ -32,6 +32,9 @@ class SummaryFileBasedResultTimeProvider(ResultTimeProvider):
             # self._result_time_cache[stock_identifier] = datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%Y-%m-%d %H:%M:%S')
             self._result_time_cache[stock_identifier] = datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%d/%m/%Y %H:%M:%S')
 
-        return self._result_time_cache.get(stock_identifier)
+        file_result_time = self._result_time_cache.get(stock_identifier)
+        if file_result_time:
+            file_result_time = file_result_time + timedelta(seconds=40)
+        return file_result_time
 
 
