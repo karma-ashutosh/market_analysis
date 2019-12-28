@@ -181,8 +181,8 @@ class MarketChangeDetector:
         self._filter_pass_queue = PerSecondLatestEventTracker(window_length_in_seconds=window_len,
                                                               keys_to_track=[self._filter_pass_key_name])
 
-        self._profit_limit = 0.01
-        self._loss_limit = 0.01
+        self._profit_limit = 0.015
+        self._loss_limit = 0.015
 
         self._position = MarketPosition(stop_loss_threshold, stop_loss_minimium_change_threshold)
 

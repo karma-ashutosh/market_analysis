@@ -4,6 +4,7 @@ from constants import TIMESTAMP
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import map_with_percentage_progress
 from stock_trade_script import MainClass
+import os
 
 EMPTY_KEY = ''
 
@@ -53,8 +54,9 @@ if __name__ == '__main__':
 
     results = []
 
-    file_names_to_process = ["3MINDIA.csv"]
+    file_names_to_process = os.listdir('./../market_analysis_data/csv_files/')  
     for name in file_names_to_process:
+        print(name)
         main_class = MainClass(simulation=True)
         event_emitter = MarketEventEmitter(file_name=name)
         events = []
