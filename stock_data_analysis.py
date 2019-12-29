@@ -56,23 +56,26 @@ if __name__ == '__main__':
 
     file_names_to_process = os.listdir('./../market_analysis_data/csv_files/')  
     for name in file_names_to_process:
-        print(name)
-        main_class = MainClass(simulation=True)
-        event_emitter = MarketEventEmitter(file_name=name)
-        events = []
-        while True:
-            try:
-                events.append(event_emitter.emit())
-            except:
-                x = 0
-                break
+        try:
+            print(name)
+            main_class = MainClass(simulation=True)
+            event_emitter = MarketEventEmitter(file_name=name)
+            events = []
+            while True:
+                try:
+                    events.append(event_emitter.emit())
+                except:
+                    x = 0
+                    break
 
-        print("Total number of events are: {}".format(len(events)))
-        map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
-        summary = main_class.get_summary()
-        summary = list(summary.values())[0]
-        summary['file_name'] = name
-        results.append(summary)
+            print("Total number of events are: {}".format(len(events)))
+            map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
+            summary = main_class.get_summary()
+            summary = list(summary.values())[0]
+            summary['file_name'] = name
+            results.append(summary)
+        except:
+            print("Error while processing file: " + name)
 
     csv_file_path = "../market_analysis_data/simulation_result.csv"
     flat_j_arr = [flatten(j_elem) for j_elem in results]
