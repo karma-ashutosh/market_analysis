@@ -62,8 +62,8 @@ class KiteExchange(Enum):
     NSE = "NSE"
 
 
-class TransactionType(Enum):
-    SHORT = 1
-    LONG = 2
+class TransactionType(MultiEnum):
+    SHORT = 1, "SHORT"
+    LONG = 2, "LONG"
 
 
