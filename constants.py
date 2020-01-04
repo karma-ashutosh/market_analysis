@@ -15,3 +15,5 @@ BUY_QUANTITY = 'buy_quantity'
 VOLUME = 'volume'
 
 KITE_EVENT_DATETIME_OBJ = 'datetime'
+
+BASE_DIR = "/Users/ashutosh.v/Development/market_analysis_data"

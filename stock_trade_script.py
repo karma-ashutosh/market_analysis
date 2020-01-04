@@ -7,7 +7,7 @@ from kiteconnect import KiteTicker, KiteConnect
 
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
-    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN
+    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN, BASE_DIR
 from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
@@ -273,7 +273,7 @@ class MainClass:
             self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
         else:
             self._trade_executor = DummyTradeExecutor()
-            self._result_time_provider = SummaryFileBasedResultTimeProvider("../market_analysis_data/summary.csv")
+            self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
 
     def use_kite_trade_executor(self):
         session_info = self._k_util.get_current_session_info()['result'][0]

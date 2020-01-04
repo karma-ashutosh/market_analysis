@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from constants import TIMESTAMP
+from constants import TIMESTAMP, BASE_DIR
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import map_with_percentage_progress
 from stock_trade_script import MainClass
@@ -23,7 +23,7 @@ string_date_key = 'timestamp'
 
 class MarketEventEmitter:
     def __init__(self, file_name):
-        base_path = '../market_analysis_data/csv_files/'
+        base_path = BASE_DIR + '/csv_files/'
 
         j_arr = csv_file_with_headers_to_json_arr(base_path + file_name)
         self.__event_list = list(
@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     results = []
 
-    file_names_to_process = os.listdir('./../market_analysis_data/csv_files/')  
+    file_names_to_process = os.listdir(BASE_DIR + '/csv_files/')
     for name in file_names_to_process:
         try:
             print(name)
@@ -77,11 +77,12 @@ if __name__ == '__main__':
         except:
             print("Error while processing file: " + name)
 
-    csv_file_path = "../market_analysis_data/simulation_result.csv"
+    csv_file_path = BASE_DIR + "/simulation_result.csv"
     flat_j_arr = [flatten(j_elem) for j_elem in results]
 
     for j_elem in flat_j_arr:
         for key in j_elem.keys():
             if isinstance(j_elem[key], datetime):
                 j_elem[key] = str(j_elem[key])
+    print("saving result to: "+csv_file_path)
     json_arr_to_csv(flat_j_arr, csv_file_path)
