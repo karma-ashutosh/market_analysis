@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from constants import TIMESTAMP, BASE_DIR
+from constants import TIMESTAMP, BASE_DIR, INSTRUMENT_TOKEN
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import map_with_percentage_progress
 from stock_trade_script import MainClass
@@ -40,6 +40,7 @@ class MarketEventEmitter:
 
     def emit(self):
         event = next(self.__event_iter)
+        event[INSTRUMENT_TOKEN] = str(int(float(event[INSTRUMENT_TOKEN])))
         event[LAST_PRICE] = float(event[LAST_PRICE])
         event[BUY_QUANTITY] = float(event[BUY_QUANTITY])
         event[SELL_QUANTITY] = float(event[SELL_QUANTITY])
@@ -64,7 +65,7 @@ if __name__ == '__main__':
             while True:
                 try:
                     events.append(event_emitter.emit())
-                except:
+                except Exception as e:
                     x = 0
                     break
 
