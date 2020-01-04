@@ -28,7 +28,8 @@ class SummaryFileBasedResultTimeProvider(ResultTimeProvider):
         if stock_identifier not in self._result_time_cache.keys():
             time_elem = list(filter(lambda j_elem: j_elem['token'] == stock_identifier, self._summary_arr))
             if len(time_elem) != 1:
-                raise Exception("Bruh.. the result time is fucked up man.. just look at it: " + str(time_elem))
+                raise Exception("Bruh.. the result time is fucked up man.. just look at it: {} stock_identifier: {}"
+                                .format(str(time_elem), stock_identifier))
             # self._result_time_cache[stock_identifier] = datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%Y-%m-%d %H:%M:%S')
             self._result_time_cache[stock_identifier] = datetime.strptime("{} {}".format(time_elem[0]['date'], time_elem[0]['time_value']), '%d/%m/%Y %H:%M:%S')
 
