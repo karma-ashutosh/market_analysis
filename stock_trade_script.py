@@ -5,6 +5,7 @@ from queue import Queue
 import yaml
 from kiteconnect import KiteTicker, KiteConnect
 
+from alerts import Alert
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
     KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN, BASE_DIR
@@ -275,6 +276,8 @@ class MainClass:
             self._trade_executor = DummyTradeExecutor()
             self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
 
+        self.__alert = Alert(config)
+
     def use_kite_trade_executor(self):
         session_info = self._k_util.get_current_session_info()['result'][0]
         kite_connect = KiteConnect(session_info['api_key'], session_info['access_token'])
@@ -316,6 +319,7 @@ class MainClass:
 
         def on_ticks(ws, ticks):
             # Callback to receive ticks.
+            self.__alert.send_heartbeat("stock_trade_script")
             self.handle_ticks_safely(ticks)
             # for tick in ticks:
             #     self._get_market_change_detector(str(tick[INSTRUMENT_TOKEN])).run(tick)
