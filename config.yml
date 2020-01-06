@@ -44,3 +44,5 @@ kite_config:
   instrument_mapping_table: kite.instrument_tokens
   session_info_table: kite.authentication_details
 
+alert_config:
+  mode: cloudwatch
