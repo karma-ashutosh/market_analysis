@@ -9,6 +9,7 @@ from alerts import Alert
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
     KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN, BASE_DIR
+from exit_strategy import ExitStrategy, ExitStrategyFactory
 from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
@@ -88,7 +89,8 @@ class PerSecondLatestEventTracker:
 
 
 class MarketPosition:
-    def __init__(self, stop_loss_threshold, stop_loss_update_threshold):
+    def __init__(self, exit_strategy_factory: ExitStrategyFactory):
+        self._exit_strategy_factory = exit_strategy_factory
         self._entry_scores = None
         self._entry_event = None
         self._exit_event = None
@@ -96,50 +98,27 @@ class MarketPosition:
         self._took_position = False
         self._trade_completed = False
         self._entry_price = None
-        self._last_favourable_price = None
-        self._stop_loss_threshold = stop_loss_threshold
-        self._stop_loss_update_threshold = stop_loss_update_threshold
-        self._stop_loss_triggered = False
+        self._exit_strategy: ExitStrategy = None
 
     @staticmethod
     def __price(event):
         return event[LAST_PRICE]
 
     def consume_event(self, market_event):
-        event_price = self.__price(market_event)
-        if self._transaction_type == TransactionType.LONG:
-            self._update_values_for_long(event_price)
-        else:
-            self._update_values_for_short(event_price)
-
-    def _update_values_for_short(self, event_price):
-        if event_price <= self._last_favourable_price - self._stop_loss_update_threshold:
-            self._last_favourable_price = event_price
-        elif event_price >= self._last_favourable_price + self._stop_loss_threshold:
-            self._stop_loss_triggered = True
-
-    def _update_values_for_long(self, event_price):
-        if event_price >= self._last_favourable_price + self._stop_loss_update_threshold:
-            self._last_favourable_price = event_price
-        elif event_price <= self._last_favourable_price - self._stop_loss_threshold:
-            self._stop_loss_triggered = True
+        self._exit_strategy.consume_event(market_event)
 
     def enter(self, entry_event, transaction_type: TransactionType, scores: list):
         self._entry_event = entry_event
         self._entry_price = self.__price(entry_event)
-        self._last_favourable_price = self._entry_price
         self._transaction_type = transaction_type
         self._entry_scores = scores
         self._took_position = True
+        self._exit_strategy = self._exit_strategy_factory.exit_strategy(transaction_type, entry_event)
         msg = "buy" if transaction_type == TransactionType.LONG else "sell"
         logger.info("{} stocks at : ".format(msg) + str(entry_event))
 
     def entry_price(self):
         return self._entry_event[LAST_PRICE]
-
-    def is_profitable_diff(self, diff):
-        return (self._transaction_type == TransactionType.LONG and diff > 0) \
-               or (self._transaction_type == TransactionType.SHORT and diff < 0)
 
     def exit(self, exit_event):
         self._exit_event = exit_event
@@ -148,8 +127,8 @@ class MarketPosition:
     def is_trade_done(self):
         return self._trade_completed
 
-    def stoploss_triggered(self):
-        return self._stop_loss_triggered
+    def should_exit(self):
+        return self._exit_strategy.should_exit()
 
     def enter_transaction_type(self):
         return self._transaction_type
@@ -165,7 +144,8 @@ class MarketPosition:
 
 class MarketChangeDetector:
     def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, trade_executor: TradeExecutor,
-                 stop_loss_threshold, stop_loss_minimium_change_threshold):
+                 exit_strategy_factory: ExitStrategyFactory):
+        self._exit_strategy_factory = exit_strategy_factory
         self._base_filter_func = score_functions.base_filter
         self._long_score_func_list = score_functions.long_score_func_list()
         self._short_score_func_list = score_functions.short_score_func_list()
@@ -185,7 +165,7 @@ class MarketChangeDetector:
         self._profit_limit = 0.015
         self._loss_limit = 0.015
 
-        self._position = MarketPosition(stop_loss_threshold, stop_loss_minimium_change_threshold)
+        self._position = MarketPosition(self._exit_strategy_factory)
 
         self._trade_completed = False
         self._trading_sym = trading_sym
@@ -201,7 +181,7 @@ class MarketChangeDetector:
                 self._try_exiting(market_event)
 
     def _try_exiting(self, market_event):
-        if self._position.stoploss_triggered() and not self._position.is_trade_done():
+        if self._position.should_exit() and not self._position.is_trade_done():
             if self._position.enter_transaction_type() == TransactionType.LONG:
                 self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.SHORT)
                 self._position.exit(market_event)
@@ -267,6 +247,8 @@ class MainClass:
         self._market_stats = self._bse.get_all_stats()
         self._market_change_detector_dict = {}
 
+        self._exit_strategy_factory = ExitStrategyFactory(config['exit_config'])
+
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._instruments_to_ignore = set()
         if not simulation:
@@ -291,10 +273,7 @@ class MainClass:
         def _create_market_change_detector():
             score_func = BaseScoreFunctions(self._volume_median_for_instrument_code(trading_sym), 0.2, security_code,
                                             self._result_time_provider)
-            last_price = tick[LAST_PRICE]
-            stop_loss = last_price * 0.015
-            stop_loss_update_min_change_threshold = last_price * 0.01
-            return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor, stop_loss, stop_loss_update_min_change_threshold)
+            return MarketChangeDetector(15, score_func, trading_sym, self._trade_executor, self._exit_strategy_factory)
 
         instrument_code = tick[INSTRUMENT_TOKEN]
         trading_sym, security_code = self._k_util.map_instrument_ids_to_trading_symbol_security_code(instrument_code)
