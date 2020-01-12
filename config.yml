@@ -45,14 +45,14 @@ kite_config:
   session_info_table: kite.authentication_details
 
 alert_config:
-  mode: cloudwatch
+  mode: file
 
 exit_config:
   strategy: trailing_stoploss
 #  strategy: absolute
   loss_margin_limit_percent: 1.5
   profit_margin_limit_percent: 2.5
-  stop_loss_update_threshold_percent: 1.5
+  stop_loss_update_threshold_percent: 1
   stop_loss_threshold_percent: 1.5
 
 

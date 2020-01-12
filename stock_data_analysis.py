@@ -75,7 +75,8 @@ if __name__ == '__main__':
             summary = list(summary.values())[0]
             summary['file_name'] = name
             results.append(summary)
-        except:
+        except Exception as e:
+            print(e)
             print("Error while processing file: " + name)
 
     csv_file_path = BASE_DIR + "/simulation_result.csv"
