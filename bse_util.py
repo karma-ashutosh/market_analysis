@@ -376,7 +376,7 @@ class HistoricalStockPriceParser:
         result = [dict(zip(column_names, row_values)) for row_values in data_rows]
         return result
 
-    def run(self):
+    def run(self) -> list:
         symbols_to_process = [line.strip() for line in
                               open('text_files/temporary_stock_symbols_to_process.txt').readlines()]
 
@@ -415,6 +415,7 @@ class HistoricalStockPriceParser:
         print("writing stats to file: {}".format(output_file))
         with open(output_file, 'w') as handle:
             json.dump(stat_list, handle, indent=2)
+        return stat_list
 
 
 def _get_stats(stat_identifier_prefix: str, data_points: list):
@@ -449,8 +450,9 @@ if __name__ == '__main__':
     elif choice == 2:
         HistoricalBseAnnouncements(postgres, config).run()
     elif choice == 3:
-        HistoricalStockPriceParser().run()
-
+        stats = HistoricalStockPriceParser().run()
+        stats_table = config['bse_config']['market_stat_table']
+        postgres.insert_or_skip_on_conflict(stats, stats_table, ['security_code'])
     elif choice == 4:
         BseAnnouncementCrawler(postgres, config).refresh()
     elif choice == 5:
