@@ -401,7 +401,8 @@ class HistoricalStockPriceParser:
                 with open(path) as handle:
                     j = json.load(handle)
                 stats = {
-                    'name': f_name
+                    'symbol': f_name,
+                    'security_code': symbol_to_bse_script_id_mapping.get(f_name)
                 }
                 stats.update(_get_stats("trades", [float(elem["No. of Trades"].replace(",", "")) for elem in j]))
                 stats.update(_get_stats("volume", [float(elem["No. of Shares"].replace(",", "")) for elem in j]))
@@ -449,6 +450,7 @@ if __name__ == '__main__':
         HistoricalBseAnnouncements(postgres, config).run()
     elif choice == 3:
         HistoricalStockPriceParser().run()
+
     elif choice == 4:
         BseAnnouncementCrawler(postgres, config).refresh()
     elif choice == 5:
