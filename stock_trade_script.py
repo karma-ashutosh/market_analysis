@@ -9,10 +9,11 @@ from alerts import Alert
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
     KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN, BASE_DIR
-from exit_strategy import ExitStrategy, ExitStrategyFactory
+from exit_strategy import ExitStrategyFactory
 from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
+from market_position import MarketPosition
 from postgres_io import PostgresIO
 from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
 from score_functions import ScoreFunctions, BaseScoreFunctions
@@ -87,60 +88,6 @@ class PerSecondLatestEventTracker:
         marshaled_event[KITE_EVENT_DATETIME_OBJ] = self.__round_seconds(dt)
 
         return marshaled_event
-
-
-class MarketPosition:
-    def __init__(self, exit_strategy_factory: ExitStrategyFactory):
-        self._exit_strategy_factory = exit_strategy_factory
-        self._entry_scores = None
-        self._entry_event = None
-        self._exit_event = None
-        self._transaction_type = None
-        self._took_position = False
-        self._trade_completed = False
-        self._entry_price = None
-        self._exit_strategy: ExitStrategy = None
-
-    @staticmethod
-    def __price(event):
-        return event[LAST_PRICE]
-
-    def consume_event(self, market_event):
-        self._exit_strategy.consume_event(market_event)
-
-    def enter(self, entry_event, transaction_type: TransactionType, scores: list):
-        self._entry_event = entry_event
-        self._entry_price = self.__price(entry_event)
-        self._transaction_type = transaction_type
-        self._entry_scores = scores
-        self._took_position = True
-        self._exit_strategy = self._exit_strategy_factory.exit_strategy(transaction_type, entry_event)
-        msg = "buy" if transaction_type == TransactionType.LONG else "sell"
-        logger.info("{} stocks at : ".format(msg) + str(entry_event))
-
-    def entry_price(self):
-        return self._entry_event[LAST_PRICE]
-
-    def exit(self, exit_event):
-        self._exit_event = exit_event
-        self._trade_completed = True
-
-    def is_trade_done(self):
-        return self._trade_completed
-
-    def should_exit(self):
-        return self._exit_strategy.should_exit()
-
-    def enter_transaction_type(self):
-        return self._transaction_type
-
-    def get_summary(self):
-        return {
-            'entry': self._entry_event,
-            'exit': self._exit_event,
-            'score': self._entry_scores,
-            'type': self._transaction_type.description if self._transaction_type else None
-        }
 
 
 class MarketChangeDetector:
