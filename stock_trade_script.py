@@ -184,10 +184,10 @@ class MarketChangeDetector:
     def _try_exiting(self, market_event):
         if self._position.should_exit() and not self._position.is_trade_done():
             if self._position.enter_transaction_type() == TransactionType.LONG:
-                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.SHORT)
+                self._trade_executor.exit(self._trading_sym, market_event, TransactionType.SHORT)
                 self._position.exit(market_event)
             else:
-                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.LONG)
+                self._trade_executor.exit(self._trading_sym, market_event, TransactionType.LONG)
                 self._position.exit(market_event)
 
     def _try_take_position(self, market_event):
@@ -203,11 +203,11 @@ class MarketChangeDetector:
             long_scores = list(map(lambda func: func(current_event_list_view), self._long_score_func_list))
             short_scores = list(map(lambda func: func(current_event_list_view), self._short_score_func_list))
             if self._score_filter_func(long_scores):
-                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.LONG)
+                self._trade_executor.enter(self._trading_sym, market_event, TransactionType.LONG)
                 self._position.enter(market_event, TransactionType.LONG, long_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             elif self._score_filter_func(short_scores):
-                self._trade_executor.execute_trade(self._trading_sym, market_event, TransactionType.SHORT)
+                self._trade_executor.enter(self._trading_sym, market_event, TransactionType.SHORT)
                 self._position.enter(market_event, TransactionType.SHORT, short_scores)
                 self._filter_pass_queue.move(self.get_filter_event(market_event, True))
             else:
@@ -264,7 +264,7 @@ class MainClass:
     def use_kite_trade_executor(self):
         session_info = self._k_util.get_current_session_info()['result'][0]
         kite_connect = KiteConnect(session_info['api_key'], session_info['access_token'])
-        self._trade_executor = KiteTradeExecutor(kite_connect)
+        self._trade_executor = KiteTradeExecutor(kite_connect, )
 
     def _volume_median_for_instrument_code(self, trading_sym):
         stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]

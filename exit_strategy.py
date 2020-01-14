@@ -83,6 +83,15 @@ class AbsoluteValueExitStrategy(ExitStrategy):
             self.loss_breached()
 
 
+class AbsoluteValueStopLossExitStrategy(ExitStrategy):
+
+    def _update_values_for_long(self, event_price):
+        pass
+
+    def _update_values_for_short(self, event_price):
+        pass
+
+
 class ExitStrategyFactory:
     def __init__(self, exit_config_dict):
         self._exit_config = exit_config_dict
