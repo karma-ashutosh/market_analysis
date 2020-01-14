@@ -1,9 +1,17 @@
 import json
 from abc import abstractmethod
+from logging import Logger
 
 from kiteconnect import KiteConnect
 
 from kite_enums import KiteVariety, KiteExchange, KitePRODUCT, KiteOrderType, KiteVALIDITY, TransactionType
+
+logger = None
+
+
+def set_trade_execution_logger(target: Logger):
+    global logger
+    logger = target
 
 
 class TradeExecutor:

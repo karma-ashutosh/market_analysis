@@ -16,9 +16,10 @@ from kite_util import KiteUtil
 from postgres_io import PostgresIO
 from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
 from score_functions import ScoreFunctions, BaseScoreFunctions
-from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor
+from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor, set_trade_execution_logger
 
 logger = setup_logger("msg_logger", "./app.log")
+set_trade_execution_logger(logger)
 
 
 class PerSecondLatestEventTracker:
