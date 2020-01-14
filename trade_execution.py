@@ -23,7 +23,7 @@ class TradeExecutor:
         self.__execute_trade(trading_sym, market_event, transaction_type)
 
     def exit(self, trading_sym, market_event, transaction_type: TransactionType):
-        print("Not executing exit as all the conditions were sent during enter")
+        self.__execute_trade(trading_sym, market_event, transaction_type)
 
 
 class KiteTradeExecutor(TradeExecutor):
@@ -43,9 +43,22 @@ class KiteTradeExecutor(TradeExecutor):
                 logger.info("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
                             .format(entry_price, price_diff_percentage))
             else:
-                self.bracket_order(entry_price, trading_sym, transaction_type)
+                self.market_order(entry_price, trading_sym, transaction_type)
         except:
             logger.error("error while executing order in kite for market event: {}".format(market_event))
+
+    def market_order(self, price, trading_sym, transaction_type: TransactionType):
+        kite_transaction_type = self.kite_transaction_type(transaction_type)
+        self._kite_connect.place_order(
+            variety=KiteConnect.VARIETY_REGULAR,
+            exchange=KiteConnect.EXCHANGE_BSE,
+            tradingsymbol=trading_sym,
+            transaction_type=kite_transaction_type,
+            quantity=1,
+            product=KiteConnect.PRODUCT_MIS,
+            order_type=KiteConnect.ORDER_TYPE_LIMIT,
+            price=price
+        )
 
     def stop_loss_order(self, entry_price, trading_sym, transaction_type: TransactionType):
         kite_transaction_type = self.kite_transaction_type(transaction_type)
