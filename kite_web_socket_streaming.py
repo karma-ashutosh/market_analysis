@@ -3,6 +3,8 @@ from datetime import datetime
 import yaml
 from kiteconnect import KiteTicker
 from kiteconnect import KiteConnect
+
+from alerts import Alert
 from kite_util import KiteUtil
 from bse_util import BseUtil
 from general_util import setup_logger
@@ -37,9 +39,12 @@ if __name__ == '__main__':
     kws = KiteTicker(session_info['api_key'], session_info['access_token'])
     kite = KiteConnect(session_info['api_key'], session_info['access_token'])
 
+    alert = Alert(config)
+
 
     def on_ticks(ws, ticks):
         # Callback to receive ticks.
+        alert.send_heartbeat("kite_web_socket_streaming")
         for tick in ticks:
             for key in tick.keys():
                 if isinstance(tick[key], datetime):
