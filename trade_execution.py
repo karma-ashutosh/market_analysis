@@ -20,32 +20,62 @@ class TradeExecutor:
         pass
 
     def enter(self, trading_sym, market_event, transaction_type: TransactionType):
-        self.__execute_trade(trading_sym, market_event, transaction_type)
+        result = self.__execute_trade(trading_sym, market_event, transaction_type)
+        logger.info("Trade was done against trading_sym `{}`: {}".format(trading_sym, result))
 
     def exit(self, trading_sym, market_event, transaction_type: TransactionType):
-        self.__execute_trade(trading_sym, market_event, transaction_type)
+        result = self.__execute_trade(trading_sym, market_event, transaction_type)
+        logger.info("Trade was done against trading_sym `{}`: {}".format(trading_sym, result))
 
 
 class KiteTradeExecutor(TradeExecutor):
     def __init__(self, kite_connect: KiteConnect):
         self._kite_connect = kite_connect
+        self._skipped_stocks = set()
+        self._executed_earlier_stocks = set()
 
     def __execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
         try:
+            if self._check_if_skipped(trading_sym):
+                logger.error("symbol: {} was skipped earlier. hence not executing trade for it".format(trading_sym))
+                return False
+
             if transaction_type == TransactionType.LONG:
                 entry_price = market_event['depth']['sell'][0]['price']
             else:
                 entry_price = market_event['depth']['buy'][0]['price']
 
+            if self._check_if_executed_earlier(trading_sym):
+                self.limit_order(entry_price, trading_sym, transaction_type)
+                return True
+
             open_price = market_event['ohlc']['open']
             price_diff_percentage = (100 * abs(open_price - entry_price)) / open_price
             if entry_price > 1500 or price_diff_percentage > 5:
-                logger.info("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
-                            .format(entry_price, price_diff_percentage))
+                self._mark_skipped(trading_sym)
+                logger.info("not executing trade for symbol: {} in kite as entry_price was: {} and "
+                            "price_diff_percentage: {} "
+                            .format(trading_sym, entry_price, price_diff_percentage))
+                return False
             else:
+                self._mark_executed(trading_sym)
                 self.limit_order(entry_price, trading_sym, transaction_type)
-        except:
-            logger.error("error while executing order in kite for market event: {}".format(market_event))
+                return True
+        except Exception as e:
+            logger.exception("error while executing order in kite for market event: {}".format(market_event))
+            return False
+
+    def _check_if_skipped(self, symbol):
+        return symbol in self._skipped_stocks
+
+    def _check_if_executed_earlier(self, symbol) -> bool:
+        return symbol in self._executed_earlier_stocks
+
+    def _mark_skipped(self, symbol):
+        self._skipped_stocks.add(symbol)
+
+    def _mark_executed(self, symbol):
+        self._executed_earlier_stocks.add(symbol)
 
     def market_order(self, price, trading_sym, transaction_type: TransactionType):
         kite_transaction_type = self.kite_transaction_type(transaction_type)
