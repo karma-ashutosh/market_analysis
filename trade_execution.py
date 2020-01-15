@@ -47,6 +47,18 @@ class KiteTradeExecutor(TradeExecutor):
         except:
             logger.error("error while executing order in kite for market event: {}".format(market_event))
 
+    def market_order(self, price, trading_sym, transaction_type: TransactionType):
+        kite_transaction_type = self.kite_transaction_type(transaction_type)
+        self._kite_connect.place_order(
+            variety=KiteConnect.VARIETY_REGULAR,
+            exchange=KiteConnect.EXCHANGE_BSE,
+            tradingsymbol=trading_sym,
+            transaction_type=kite_transaction_type,
+            quantity=1,
+            product=KiteConnect.PRODUCT_MIS,
+            order_type=KiteConnect.ORDER_TYPE_MARKET,
+        )
+
     def limit_order(self, price, trading_sym, transaction_type: TransactionType):
         kite_transaction_type = self.kite_transaction_type(transaction_type)
         self._kite_connect.place_order(
