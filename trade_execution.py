@@ -43,11 +43,11 @@ class KiteTradeExecutor(TradeExecutor):
                 logger.info("not executing trade in kite as entry_price was: {} and price_diff_percentage: {}"
                             .format(entry_price, price_diff_percentage))
             else:
-                self.market_order(entry_price, trading_sym, transaction_type)
+                self.limit_order(entry_price, trading_sym, transaction_type)
         except:
             logger.error("error while executing order in kite for market event: {}".format(market_event))
 
-    def market_order(self, price, trading_sym, transaction_type: TransactionType):
+    def limit_order(self, price, trading_sym, transaction_type: TransactionType):
         kite_transaction_type = self.kite_transaction_type(transaction_type)
         self._kite_connect.place_order(
             variety=KiteConnect.VARIETY_REGULAR,

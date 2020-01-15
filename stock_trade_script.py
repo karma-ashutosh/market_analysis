@@ -297,4 +297,4 @@ class MainClass:
 
 
 if __name__ == '__main__':
-    MainClass().run_with_kite_stream()
+    MainClass(simulation=False).run_with_kite_stream()

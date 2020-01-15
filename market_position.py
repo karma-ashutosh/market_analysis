@@ -1,3 +1,4 @@
+import pickle
 from abc import abstractmethod
 from logging import Logger
 from general_util import create_dir_if_not_exists
@@ -102,10 +103,20 @@ class MarketPositionFactory:
 class FileBaseMarketPositionFactory(MarketPositionFactory):
     def __init__(self, exit_strategy_factory: ExitStrategyFactory, file_path):
         super().__init__(exit_strategy_factory)
-        create_dir_if_not_exists(file_name=file_path)
+        try:
+            with open(file_path, 'rb') as handle:
+                self._position_dict = pickle.load(handle)
+        except Exception as e:
+            logger.error("Error while loading position dict: {}".format(file_path), e)
+            self._position_dict = {}
+            create_dir_if_not_exists(file_name=file_path)
+        self._dict_pickle_path = file_path
 
     def _get_existing_market_position(self, key: str) -> MarketPosition:
-        pass
+        return self._position_dict.get(key)
 
     def _persist_market_position(self, key: str, market_position: MarketPosition):
-        pass
+        self._position_dict[key] = market_position
+        with open(self._dict_pickle_path, 'wb') as handle:
+            pickle.dump(self._position_dict, handle)
+        pickle.dumps(self._position_dict)
