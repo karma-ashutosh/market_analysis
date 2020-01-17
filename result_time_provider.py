@@ -1,13 +1,16 @@
 from abc import abstractmethod
 from datetime import datetime, timedelta
 
+import yaml
+
 from bse_util import BseAnnouncementCrawler
 from general_util import csv_file_with_headers_to_json_arr
+from postgres_io import PostgresIO
 
 
 class ResultTimeProvider:
     @abstractmethod
-    def get_latest_result_time(self, stock_identifier):
+    def get_latest_result_time(self, stock_identifier) -> datetime:
         pass
 
 
@@ -16,7 +19,7 @@ class BseCrawlerBasedResultTimeProvider(ResultTimeProvider):
         self._bse_crawler = crawler
 
     def get_latest_result_time(self, stock_identifier):
-        self._bse_crawler.get_latest_result_time_for_security_code(stock_identifier)
+        return self._bse_crawler.get_latest_result_time_for_security_code(stock_identifier)
 
 
 class SummaryFileBasedResultTimeProvider(ResultTimeProvider):
@@ -37,5 +40,3 @@ class SummaryFileBasedResultTimeProvider(ResultTimeProvider):
         if file_result_time:
             file_result_time = file_result_time + timedelta(seconds=40)
         return file_result_time
-
-
