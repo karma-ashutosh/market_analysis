@@ -233,6 +233,12 @@ class BseResultUpdateUtil:
         self.postgres.insert_or_skip_on_conflict(target_j_arr, self.bse_config['upcoming_result_table'],
                                                  ['security_code', 'result_date'])
 
+    def get_stocks_with_results_scheduled_for_today(self, target_date_str=None):
+        if target_date_str is None or len(target_date_str) == 0:
+            target_date_str = datetime.now().strftime("%Y-%m-%d")
+        return self.postgres.execute(["SELECT * FROM {} WHERE system_readable_date = '{}'"
+                                     .format(self.bse_config['upcoming_result_table'], target_date_str)])
+
     @staticmethod
     def get_human_readable_date(date: str) -> str:
         return datetime.strptime(date, '%d %B %Y').strftime('%Y-%m-%d')
@@ -440,7 +446,8 @@ if __name__ == '__main__':
                        "exchange_token in file text_files/instruments.csv\n "
                        "(iv) 4 for updating new bse announcements in db\n"
                        "(v) 5 for getting company wise latest news\n"
-                       "(v) 6 for getting bse_crawler performance\n"))
+                       "(v) 6 for getting bse_crawler performance\n"
+                       "(vi) 7 for getting scheduled announcements for today\n"))
 
     with open('./config.yml') as handle:
         config = yaml.load(handle)
@@ -466,5 +473,8 @@ if __name__ == '__main__':
         result = bse.get_performance_for_date(target_date)
         with open(target_file, 'w') as handle:
             json.dump(result, handle, indent=2)
+    elif choice == 7:
+        target_date = input("date for which you want result (you can leave empty for today): ")
+        print(BseResultUpdateUtil(postgres, config).get_stocks_with_results_scheduled_for_today(target_date))
     else:
         print("Choice didn't match any of the valid options. Please try again")
