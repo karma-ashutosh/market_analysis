@@ -199,12 +199,13 @@ class MainClass:
 
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._instruments_to_ignore = set()
-        if not simulation:
-            self.use_kite_trade_executor()
-            self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
-        else:
-            self._trade_executor = DummyTradeExecutor()
-            self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
+        # if not simulation:
+        #     self.use_kite_trade_executor()
+        #     self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
+        # else:
+        #     self._trade_executor = DummyTradeExecutor()
+        #     self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
+        self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
 
         self.__alert = Alert(config)
 
