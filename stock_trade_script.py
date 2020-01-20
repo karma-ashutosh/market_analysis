@@ -18,10 +18,10 @@ from postgres_io import PostgresIO
 from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
 from score_functions import ScoreFunctions, BaseScoreFunctions
 from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor, set_trade_execution_logger
-
+from market_position import set_market_position_logger
 logger = setup_logger("msg_logger", "./app.log")
 set_trade_execution_logger(logger)
-
+set_market_position_logger(logger)
 
 class PerSecondLatestEventTracker:
     def __init__(self, window_length_in_seconds: int, keys_to_track: list):
@@ -199,12 +199,12 @@ class MainClass:
 
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._instruments_to_ignore = set()
-        # if not simulation:
-        #     self.use_kite_trade_executor()
-        #     self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
-        # else:
-        #     self._trade_executor = DummyTradeExecutor()
-        #     self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
+        if not simulation:
+            self.use_kite_trade_executor()
+            # self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
+        else:
+            self._trade_executor = DummyTradeExecutor()
+            # self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
         self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
 
         self.__alert = Alert(config)
@@ -212,7 +212,7 @@ class MainClass:
     def use_kite_trade_executor(self):
         session_info = self._k_util.get_current_session_info()['result'][0]
         kite_connect = KiteConnect(session_info['api_key'], session_info['access_token'])
-        self._trade_executor = KiteTradeExecutor(kite_connect, )
+        self._trade_executor = KiteTradeExecutor(kite_connect)
 
     def _volume_median_for_instrument_code(self, trading_sym):
         stat = list(filter(lambda j: j['symbol'] == trading_sym, self._market_stats))[0]
