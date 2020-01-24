@@ -8,17 +8,18 @@ from kiteconnect import KiteTicker, KiteConnect
 from alerts import Alert
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
-    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN, BASE_DIR
+    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN
 from exit_strategy import ExitStrategyFactory
 from general_util import setup_logger
 from kite_enums import TransactionType
 from kite_util import KiteUtil
 from market_position import MarketPosition
-from postgres_io import PostgresIO
-from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
-from score_functions import ScoreFunctions, BaseScoreFunctions
-from trade_execution import TradeExecutor, DummyTradeExecutor, KiteTradeExecutor, set_trade_execution_logger
 from market_position import set_market_position_logger
+from postgres_io import PostgresIO
+from result_time_provider import BseCrawlerBasedResultTimeProvider
+from score_functions import ScoreFunctions, BaseScoreFunctions
+from trade_execution import KiteTradeExecutor, set_trade_execution_logger
+
 logger = setup_logger("msg_logger", "./app.log")
 set_trade_execution_logger(logger)
 set_market_position_logger(logger)
@@ -91,7 +92,7 @@ class PerSecondLatestEventTracker:
 
 
 class MarketChangeDetector:
-    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, trade_executor: TradeExecutor,
+    def __init__(self, window_len, score_functions: ScoreFunctions, trading_sym, trade_executor: KiteTradeExecutor,
                  exit_strategy_factory: ExitStrategyFactory):
         self._exit_strategy_factory = exit_strategy_factory
         self._base_filter_func = score_functions.base_filter
@@ -199,12 +200,13 @@ class MainClass:
 
         self._instruments_to_fetch = self._get_instruments_to_fetch()
         self._instruments_to_ignore = set()
-        if not simulation:
-            self.use_kite_trade_executor()
-            # self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
-        else:
-            self._trade_executor = DummyTradeExecutor()
-            # self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
+        # if not simulation:
+        #     self.use_kite_trade_executor()
+        #     # self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
+        # else:
+        #     self._trade_executor = DummyTradeExecutor()
+        #     # self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
+        self.use_kite_trade_executor()
         self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
 
         self.__alert = Alert(config)
