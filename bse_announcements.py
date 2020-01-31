@@ -3,6 +3,7 @@ from time import sleep
 
 import yaml
 
+from alerts import Alert
 from bse_util import BseAnnouncementCrawler
 from general_util import run_in_background, setup_logger
 from postgres_io import PostgresIO
@@ -19,8 +20,10 @@ if __name__ == '__main__':
     postgres.connect()
 
     crawler = BseAnnouncementCrawler(postgres, config)
+    alert = Alert(config)
     while True:
         try:
+            alert.send_heartbeat("bse_announcements")
             today = datetime.now()
             run_in_background(crawler.refresh)
             sleep(2)
