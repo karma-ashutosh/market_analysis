@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from constants import TIMESTAMP, BASE_DIR, INSTRUMENT_TOKEN
@@ -51,23 +52,42 @@ class MarketEventEmitter:
         return event
 
 
+def get_events_from_csv() -> list:
+    event_emitter = MarketEventEmitter(file_name=name)
+    events = []
+    while True:
+        try:
+            events.append(event_emitter.emit())
+        except Exception as e:
+            break
+    return events
+
+
+def get_events_from_log_file(file_path: str) -> list:
+    j_arr = [json.loads(line.strip()) for line in open(file_path).readlines()]
+    result = []
+    for tick in j_arr:
+        for j_elem in tick:
+            strip_time(j_elem)
+            result.append(j_elem)
+    return result
+
+
+def strip_time(j_elem: dict):
+    dt = datetime.strptime(j_elem['timestamp'], '%Y-%m-%d %H:%M:%S')
+    j_elem[TIMESTAMP] = dt
+
+
 if __name__ == '__main__':
 
     results = []
 
     file_names_to_process = os.listdir(BASE_DIR + '/csv_files/')
-    for name in file_names_to_process:
+    for name in ['ADCINDIA.csv']:
         try:
             print(name)
             main_class = MainClass(simulation=True)
-            event_emitter = MarketEventEmitter(file_name=name)
-            events = []
-            while True:
-                try:
-                    events.append(event_emitter.emit())
-                except Exception as e:
-                    x = 0
-                    break
+            events = get_events_from_log_file("/tmp/kite_logs/kite.log")
 
             print("Total number of events are: {}".format(len(events)))
             map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
