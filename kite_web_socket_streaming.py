@@ -19,9 +19,14 @@ def get_instruments_to_fetch():
     results_for_yesterday = bse.get_result_announcement_meta_for_yesterday()
     results_for_today.extend(results_for_yesterday)
 
-    security_codes = list(map(lambda j: j['security_code'], results_for_today))
-    instrument_mapping = k_util.map_bse_code_to_instrument_id(security_codes)
-    return [int(v) for v in instrument_mapping.values()]
+    bse_security_codes = list(map(lambda j: j['security_code'], results_for_today))
+    nse_security_codes = list(k_util.get_nse_exchange_token_for_bse_exchange_token(bse_security_codes).values())
+
+    bse_instrument_mapping = k_util.map_bse_code_to_instrument_id(bse_security_codes)
+    nse_instrument_mapping = k_util.map_nse_code_to_instrument_id(nse_security_codes)
+    instrument_tokens = [int(v) for v in bse_instrument_mapping.values()]
+    instrument_tokens.extend([int(v) for v in nse_instrument_mapping.values()])
+    return instrument_tokens
 
 
 if __name__ == '__main__':

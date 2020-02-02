@@ -43,6 +43,7 @@ bse_send_result_notification:
 kite_config:
   instrument_mapping_table: kite.instrument_tokens
   session_info_table: kite.authentication_details
+  bse_nse_mapping: kite.bse_to_nse_mapping
 
 alert_config:
   mode: file
