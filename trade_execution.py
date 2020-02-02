@@ -4,6 +4,7 @@ from logging import Logger
 
 from kiteconnect import KiteConnect
 
+from constants import LAST_PRICE
 from kite_enums import TransactionType
 
 logger = None
@@ -34,10 +35,7 @@ class KiteTradeExecutor:
                 logger.error("symbol: {} was skipped earlier. hence not executing trade for it".format(trading_sym))
                 return False
 
-            if transaction_type == TransactionType.LONG:
-                entry_price = market_event['depth']['sell'][0]['price']
-            else:
-                entry_price = market_event['depth']['buy'][0]['price']
+            entry_price = market_event[LAST_PRICE]
 
             if self._check_if_executed_earlier(trading_sym):
                 self.limit_order(entry_price, trading_sym, transaction_type)
@@ -52,8 +50,8 @@ class KiteTradeExecutor:
                             .format(trading_sym, entry_price, price_diff_percentage))
                 return False
             else:
+                self.market_order(trading_sym, transaction_type)
                 self._mark_executed(trading_sym)
-                self.limit_order(entry_price, trading_sym, transaction_type)
                 return True
         except Exception as e:
             logger.exception("error while executing order in kite for market event: {}".format(market_event))
@@ -71,7 +69,7 @@ class KiteTradeExecutor:
     def _mark_executed(self, symbol):
         self._executed_earlier_stocks.add(symbol)
 
-    def market_order(self, price, trading_sym, transaction_type: TransactionType):
+    def market_order(self, trading_sym, transaction_type: TransactionType):
         kite_transaction_type = self.kite_transaction_type(transaction_type)
         self._kite_connect.place_order(
             variety=KiteConnect.VARIETY_REGULAR,
