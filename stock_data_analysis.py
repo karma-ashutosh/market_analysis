@@ -4,7 +4,7 @@ from datetime import datetime
 from constants import TIMESTAMP, BASE_DIR, INSTRUMENT_TOKEN
 from general_util import csv_file_with_headers_to_json_arr, json_arr_to_csv, flatten
 from general_util import map_with_percentage_progress
-from stock_trade_script import MainClass
+from stock_trade_script import MainClass, logger
 import os
 
 EMPTY_KEY = ''
@@ -52,8 +52,8 @@ class MarketEventEmitter:
         return event
 
 
-def get_events_from_csv() -> list:
-    event_emitter = MarketEventEmitter(file_name=name)
+def get_events_from_csv(file_name) -> list:
+    event_emitter = MarketEventEmitter(file_name=file_name)
     events = []
     while True:
         try:
@@ -85,12 +85,12 @@ if __name__ == '__main__':
     file_names_to_process = os.listdir(BASE_DIR + '/csv_files/')
     for name in ['ADCINDIA.csv']:
         try:
-            print(name)
-            main_class = MainClass(simulation=True)
-            events = get_events_from_log_file("/tmp/kite_logs/kite.log")
-
-            print("Total number of events are: {}".format(len(events)))
-            map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]))
+            logger.info(name)
+            main_class = MainClass()
+            # events = get_events_from_log_file("/tmp/kite_logs/kite.log")
+            events = get_events_from_csv(name)
+            logger.info("Total number of events are: {}".format(len(events)))
+            map_with_percentage_progress(events, lambda event: main_class.handle_ticks_safely([event]), percentages=tuple(range(1, 100, 1)), logger=logger)
             summary = main_class.get_summary()
             summary = list(summary.values())[0]
             summary['file_name'] = name

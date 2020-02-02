@@ -8,7 +8,7 @@ from kiteconnect import KiteTicker, KiteConnect
 from alerts import Alert
 from bse_util import BseUtil, BseAnnouncementCrawler
 from constants import TIMESTAMP, LAST_PRICE, EMPTY_KEY, VOLUME, BUY_QUANTITY, SELL_QUANTITY, LAST_TRADE_TIME, \
-    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN
+    KITE_EVENT_DATETIME_OBJ, INSTRUMENT_TOKEN, BASE_DIR
 from exit_strategy import ExitStrategyFactory
 from general_util import setup_logger
 from kite_enums import TransactionType
@@ -16,7 +16,7 @@ from kite_util import KiteUtil
 from market_position import MarketPosition
 from market_position import set_market_position_logger
 from postgres_io import PostgresIO
-from result_time_provider import BseCrawlerBasedResultTimeProvider
+from result_time_provider import BseCrawlerBasedResultTimeProvider, SummaryFileBasedResultTimeProvider
 from score_functions import ScoreFunctions, BaseScoreFunctions
 from trade_execution import KiteTradeExecutor, set_trade_execution_logger
 
@@ -183,7 +183,7 @@ class MarketChangeDetector:
 
 
 class MainClass:
-    def __init__(self, simulation=True):
+    def __init__(self):
         with open('./config.yml') as handle:
             config = yaml.load(handle)
         self._postgres = PostgresIO(config['postgres-config'])
@@ -208,7 +208,7 @@ class MainClass:
         #     # self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
         self.use_kite_trade_executor()
         self._result_time_provider = BseCrawlerBasedResultTimeProvider(BseAnnouncementCrawler(self._postgres, config))
-
+        # self._result_time_provider = SummaryFileBasedResultTimeProvider(BASE_DIR + "/summary.csv")
         self.__alert = Alert(config)
 
     def use_kite_trade_executor(self):
@@ -300,4 +300,4 @@ class MainClass:
 
 
 if __name__ == '__main__':
-    MainClass(simulation=False).run_with_kite_stream()
+    MainClass().run_with_kite_stream()

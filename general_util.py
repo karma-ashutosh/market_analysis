@@ -272,7 +272,8 @@ def getCurrentTimeStamp():
 
 
 
-def map_with_percentage_progress(input_list, func, output_container=None, percentages=tuple(range(0, 100, 5))):
+def map_with_percentage_progress(input_list, func, output_container=None, percentages=tuple(range(0, 100, 5)),
+                                 logger=None):
     total_count = len(input_list)
     progress_count_dict = dict(list(zip((map(lambda percentage: int(percentage * total_count / 100), percentages)),
                                         percentages)))
@@ -284,7 +285,10 @@ def map_with_percentage_progress(input_list, func, output_container=None, percen
     for index in range(total_count):
         result.append(func(input_list[index]))
         if index in progress_count_dict.keys():
-            print("completed {} percent job".format(progress_count_dict[index]))
+            if logger is None:
+                print("completed {} percent job".format(progress_count_dict[index]))
+            else:
+                logger.info("completed {} percent job".format(progress_count_dict[index]))
     return result
 
 
