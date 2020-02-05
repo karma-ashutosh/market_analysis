@@ -159,30 +159,23 @@ class KiteTradeExecutor:
         return kite_transaction_type
 
 
-# class TradeExecutor:
-#     @abstractmethod
-#     def __execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
-#         pass
-#
-#     def enter(self, trading_sym, market_event, transaction_type: TransactionType):
-#         result = self.__execute_trade(trading_sym, market_event, transaction_type)
-#         logger.info("Trade was done against trading_sym `{}`: {}".format(trading_sym, result))
-#
-#     def exit(self, trading_sym, market_event, transaction_type: TransactionType):
-#         result = self.__execute_trade(trading_sym, market_event, transaction_type)
-#         logger.info("Trade was done against trading_sym `{}`: {}".format(trading_sym, result))
-#
-#
-# class DummyTradeExecutor(TradeExecutor):
-#
-#     def __execute_trade(self, trading_sym, market_event, transaction_type: TransactionType):
-#         message = {
-#             'trade_executor': "DummyTradeExecutor",
-#             'trading_sym': trading_sym,
-#             'transaction_type': transaction_type.value,
-#             'market_event': str(market_event)
-#         }
-#         print("Executed trade: {}".format(json.dumps(message)))
-#
-#     def exit(self, trading_sym, market_event, transaction_type: TransactionType):
-#         self.__execute_trade(trading_sym, market_event, transaction_type)
+class DummyTradeExecutor:
+
+    def enter(self, trading_sym, market_event, transaction_type: TransactionType):
+        result = self.__execute_trade(trading_sym, market_event, transaction_type)
+        logger.info("Trade was done against trading_sym `{}`: {}".format(trading_sym, result))
+
+    def exit(self, trading_sym, market_event, transaction_type: TransactionType):
+        result = self.__execute_trade(trading_sym, market_event, transaction_type)
+        logger.info("Trade was done against trading_sym `{}`: {}".format(trading_sym, result))
+
+    @staticmethod
+    def __execute_trade(trading_sym, market_event, transaction_type: TransactionType):
+        message = {
+            'trade_executor': "DummyTradeExecutor",
+            'trading_sym': trading_sym,
+            'transaction_type': transaction_type.value,
+            'market_event': str(market_event)
+        }
+        return message
+
