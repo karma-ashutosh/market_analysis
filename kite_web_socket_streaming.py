@@ -26,6 +26,9 @@ def get_instruments_to_fetch():
     nse_instrument_mapping = k_util.map_nse_code_to_instrument_id(nse_security_codes)
     instrument_tokens = [int(v) for v in bse_instrument_mapping.values()]
     instrument_tokens.extend([int(v) for v in nse_instrument_mapping.values()])
+    msg_logger.info("logging instrument tokens: "+str(instrument_tokens))
+    msg_logger.info("logging bse_security_codes: "+str(bse_security_codes))
+    msg_logger.info("logging nse_security_codes: "+str(nse_security_codes))
     return instrument_tokens
 
 
