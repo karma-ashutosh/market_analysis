@@ -6,7 +6,7 @@ from datetime import datetime
 import yaml
 from pyspark import SparkContext, SparkConf, RDD
 from pyspark.sql import SparkSession
-
+import pandas
 from bse_util import BseUtil
 from connection_factory import get_bse_util, get_kite_util
 from postgres_io import PostgresIO
@@ -73,7 +73,7 @@ def strip_time(j_elem: dict):
 
 def add_grouping_key_and_default_doc_count(j_elem: dict):
     j_elem['stock_minute_grouping_key'] = "{}_{}_{}_{}".format(j_elem.get('instrument_token'),
-                                                            j_elem['date'], j_elem['hour'], j_elem['minute'])
+                                                               j_elem['date'], j_elem['hour'], j_elem['minute'])
 
     set_millis_to_minute_start_time(j_elem)
 
@@ -97,7 +97,7 @@ def get_unique_nano_from_millis(millis):
     return new_nano
 
 
-def to_influx_line(j_elem, additional_tags: dict=None):
+def to_influx_line(j_elem, additional_tags: dict = None):
     tag_list = ["{}={}".format(name, j_elem.get(name)) for name in tags]
 
     if additional_tags:
@@ -126,7 +126,8 @@ def add_should_log_event_for_partition(j_arr: list) -> None:
     bse_util = BseUtil(config, postgres)
 
     for j_elem in j_arr:
-        j_elem['should_log_event'] = bse_util.should_process_historical_event(j_elem['trading_symbol'], j_elem['datetime'])
+        j_elem['should_log_event'] = bse_util.should_process_historical_event(j_elem['trading_symbol'],
+                                                                              j_elem['datetime'])
 
 
 def was_event_in_result_announcement_hour(j_elem: dict) -> bool:
@@ -142,7 +143,7 @@ CREATE DATABASE kite_web_socket_data
 """
 
 
-def add_grouped_values_and_count(j_elem_1:  dict, j_elem_2: dict):
+def add_grouped_values_and_count(j_elem_1: dict, j_elem_2: dict):
     result = {}
     for key in fields:
         result[key] = j_elem_1[key] + j_elem_2[key]
@@ -167,15 +168,6 @@ def convert_summation_to_average(j_elem):
     return result
 
 
-def write_all_influx_lines_grouped_by_minutes(processed_rdd: RDD):
-    reduced_rdd = processed_rdd\
-        .map(add_grouping_key_and_default_doc_count)\
-        .map(lambda j_elem: (j_elem['stock_minute_grouping_key'], j_elem))\
-        .reduceByKey(add_grouped_values_and_count)\
-        .map(lambda tup: tup[1])\
-        .map(convert_summation_to_average)
-    save_to_influx_file(reduced_rdd, "{}/influx_lines_minute_grouping.influx".format(influx_folder), 'avg_over_minute')
-
 
 def write_all_influx_lines_for_result_hour(processed_rdd: RDD):
     filtered_rdd = processed_rdd.filter(was_event_in_result_announcement_hour)
@@ -194,15 +186,11 @@ def save_to_influx_file(filtered_rdd, file_name, measurement_type):
 
 
 if __name__ == '__main__':
-    # source_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/raw_files/test"
-    # report_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/reports/test"
-    # influx_folder = "/Users/ashutosh.v/Development/bse_data_processing/kite_stream/influx/test"
-    source_folder = "/home/ubuntu/kite_websocket_data/test"
-    influx_folder = "/home/ubuntu/kite_influx_files/test"
+    report_folder = "/Users/ashutosh.v/Development/market_analysis_data/reports"
+    source_folder = "/Users/ashutosh.v/Development/market_analysis_data/logs"
 
     with open('./config.yml') as handle:
         config = yaml.load(handle)
-
 
     os.environ["PYSPARK_PYTHON"] = "python3"
     os.environ["PYSPARK_DRIVER_PYTHON"] = "python3"
@@ -216,21 +204,17 @@ if __name__ == '__main__':
         .textFile("{}/*".format(source_folder)) \
         .repartition(8) \
         .flatMap(json.loads) \
-        .map(flatten).map(strip_time)\
-        .filter(lambda j: 8 < j['hour'] < 16)\
+        .map(flatten).map(strip_time) \
+        .filter(lambda j: 8 < j['hour'] < 16) \
         .map(lambda j: add_trading_symbol(j, instrument_to_sym_mapping))
 
     rdd.cache()
 
-    write_all_influx_lines_for_result_hour(rdd)
-    # write_all_influx_lines_grouped_by_minutes(rdd)
 
+    df = rdd.toDF().filter("hour > 8").filter("hour < 16").drop('hour')
+    df.cache()
 
-
-    # df = rdd.toDF().filter("hour > 8").filter("hour < 16").drop('hour')
-    # df.cache()
-
-    # instruments = [i.instrument_token for i in df.select('instrument_token').distinct().collect()]
-    # for instrument in instruments:
-    #     df.filter("instrument_token={}".format(instrument)).toPandas().to_csv(
-    #         "{}/{}.csv".format(report_folder, instrument))
+    instruments = [i.instrument_token for i in df.select('instrument_token').distinct().collect()]
+    for instrument in instruments:
+        df.filter("instrument_token={}".format(instrument)).toPandas().to_csv(
+            "{}/{}.csv".format(report_folder, instrument))
