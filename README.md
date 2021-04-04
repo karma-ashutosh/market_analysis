@@ -1,7 +1,10 @@
 ## to restart kite streaming
 cd /home/ubuntu/market_analysis
+
 ps aux | grep kite_web_socket_streaming.py
+
 kill the process
+
 python3 kite_util.py
 # open the link in browser in incognito mode and login
 # copy the value of request_token (example: request_token=gFmPkxWKt5vVgx4xCtOZSpHzii5GAt3f) and paste in the terminal

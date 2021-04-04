@@ -6,7 +6,7 @@ dateparser
 urllib3
 matplotlib
 alpha_vantage
-psycopg2==2.7.5
+#psycopg2==2.7.5
 requests==2.19.1
 beautifulsoup4==4.6.3
 python_twitter==3.4.2
