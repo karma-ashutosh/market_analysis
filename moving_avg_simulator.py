@@ -156,20 +156,16 @@ class TradeSimulator:
         return trades
 
 
-if __name__ == '__main__':
-    file_name = "BPCL_134657.json"
-
+def run_trades_for_file(file_name):
     simulator = MovingAvgTradeSimulator(file_name, 5, 15)
     cross_overs = simulator.get_cross_overs()
     trade_simulator = TradeSimulator(cross_overs, 10000)
     trades = trade_simulator.execute_trades()
-
     net_profit = 0
     profitable_trades, loss_making_trades = 0, 0
     only_profit, only_loss = 0, 0
-
     for trade in trades:
-        print(trade)
+        # print(trade)
         trade_profit = trade.total_profit
         net_profit = net_profit + trade_profit
         if trade_profit > 0:
@@ -178,8 +174,7 @@ if __name__ == '__main__':
         else:
             only_loss = loss_making_trades - trade_profit
             loss_making_trades = loss_making_trades + 1
-
-    print("total profit earned {} in {} trades".format(net_profit, len(trades)))
+    # print("total profit earned {} in {} trades".format(net_profit, len(trades)))
     result = {
         "net_profit": net_profit,
         "profitable_trades": profitable_trades,
@@ -187,4 +182,22 @@ if __name__ == '__main__':
         "loss_making_trades": loss_making_trades,
         "only_loss": only_loss
     }
-    print(json.dumps(result, indent=1))
+    return result
+
+
+if __name__ == '__main__':
+    file_names = ['ADANIPORTS_3861249.json', 'ASIANPAINT_60417.json', 'BAJAJ-AUTO_4267265.json', 'BAJAJFINSV_4268801.json',
+     'BHARTIARTL_2714625.json', 'BPCL_134657.json', 'BRITANNIA_140033.json', 'CIPLA_177665.json',
+     'DIVISLAB_2800641.json', 'DRREDDY_225537.json', 'EICHERMOT_232961.json', 'GRASIM_315393.json',
+     'HCLTECH_1850625.json', 'HDFC_340481.json', 'HDFCBANK_341249.json', 'HEROMOTOCO_345089.json',
+     'HINDPETRO_359937.json', 'HINDUNILVR_356865.json', 'INDUSINDBK_1346049.json', 'INFY_408065.json',
+     'IOC_415745.json', 'ITC_424961.json', 'JSWSTEEL_3001089.json', 'KOTAKBANK_492033.json', 'LT_2939649.json',
+     'MARUTI_2815745.json', 'M&M_519937.json', 'NESTLEIND_4598529.json', 'NTPC_2977281.json', 'ONGC_633601.json',
+     'POWERGRID_3834113.json', 'RELIANCE_738561.json', 'SAIL_758529.json', 'SBILIFE_5582849.json', 'SBIN_779521.json',
+     'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
+     'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json', 'WIPRO_969473.json']
+
+    for name in file_names:
+        result = run_trades_for_file(name)
+        print("result for: {} is \n{}\n\n===================\n\n".format(name, json.dumps(result, indent=1)))
+
