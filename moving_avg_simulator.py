@@ -14,14 +14,28 @@ class CrossOver:
 
 
 class CrossOverGenerator:
-    def __init__(self, data_series: list, smaller_window: int, large_window: int, avg_func):
+    def __init__(self, data_series: list, smaller_window: int, large_window: int):
         self.data_series = data_series
         self.smaller_window = smaller_window
         self.large_window = large_window
-        self.avg_func = avg_func
         self.staring_index = large_window - 1
         if large_window <= smaller_window:
             raise Exception("larger window must be larger than smaller window")
+
+    @staticmethod
+    def avg_function(data_series, window_size):
+        smoothing_factor = 2
+
+        avg_series = [None] * window_size
+        yesterday_avg = sum(data_series[:window_size]) / window_size
+        for index in range(window_size, len(data_series)):
+            today_val = data_series[index]
+            today_avg = (today_val * (smoothing_factor / (1 + window_size))) \
+                        + yesterday_avg * (1 - (smoothing_factor / (1 + window_size)))
+            avg_series.append(today_avg)
+            yesterday_avg = today_avg
+
+        return avg_series
 
     def find_cross_overs(self):
         result = []
@@ -38,7 +52,16 @@ class CrossOverGenerator:
         return result
 
     def find_moving_avg_diff(self) -> list:
-        return [(index, self.avg_diff_for_index(index)) for index in range(self.staring_index, len(self.data_series))]
+        # return [(index, self.avg_diff_for_index(index)) for index in range(self.staring_index, len(self.data_series))]
+        larger_moving_avg = self.avg_function(self.data_series, self.large_window)
+        smaller_moving_avg = self.avg_function(self.data_series, self.smaller_window)
+        result = [None] * self.large_window
+
+        for index in range(self.large_window + 1, len(self.data_series)):
+            result.append(smaller_moving_avg[index] - larger_moving_avg[index])
+        return result
+
+
 
     def avg_diff_for_index(self, index):
         small_window, large_window = self.window_entries(index)
@@ -54,11 +77,10 @@ class CrossOverGenerator:
 
 
 class MovingAvgTradeSimulator:
-    def __init__(self, file_name, smaller_window, larger_window, avg_func):
+    def __init__(self, file_name, smaller_window, larger_window):
         self.file_name = file_name
         self.smaller_window = smaller_window
         self.larger_window = larger_window
-        self.avg_func = avg_func
 
     def kite_series(self):
         file_name_prefix = "/data/kite_websocket_data/historical/"
@@ -69,8 +91,7 @@ class MovingAvgTradeSimulator:
     def print_cross_overs(self):
         date_open_series = self.kite_series()
         price_series = list(map(lambda tup: tup[1], date_open_series))
-        cross_overs = CrossOverGenerator(price_series, self.smaller_window, self.larger_window, self.avg_func)\
-            .find_cross_overs()
+        cross_overs = CrossOverGenerator(price_series, self.smaller_window, self.larger_window).find_cross_overs()
         for cross in cross_overs:
             index = cross.index
             direction = cross.direction
@@ -80,10 +101,6 @@ class MovingAvgTradeSimulator:
 
 
 if __name__ == '__main__':
-    def avg_function(data_series):
-        return 1.0
-
     file_name = "ADANIPORTS_3861249.json"
 
-    MovingAvgTradeSimulator(file_name, 5, 15, avg_function).print_cross_overs()
-
+    MovingAvgTradeSimulator(file_name, 5, 15).print_cross_overs()
