@@ -8,14 +8,17 @@ class Direction(Enum):
 
 
 class CrossOver:
-    def __init__(self, index, direction: Direction):
+    def __init__(self, index, direction: Direction, price, date):
         self.index = index
         self.direction = direction
+        self.price = price
+        self.date = date
 
 
 class CrossOverGenerator:
-    def __init__(self, data_series: list, smaller_window: int, large_window: int):
-        self.data_series = data_series
+    def __init__(self, price_series: list, date_series: list, smaller_window: int, large_window: int):
+        self.date_series = date_series
+        self.price_series = price_series
         self.smaller_window = smaller_window
         self.large_window = large_window
         self.staring_index = large_window - 1
@@ -46,22 +49,20 @@ class CrossOverGenerator:
             if prev_diff > 0 and cur_diff > 0 or prev_diff < 0 and cur_diff < 0:
                 continue
             elif prev_diff > 0:
-                result.append(CrossOver(index, Direction.DOWN))
+                result.append(CrossOver(index, Direction.DOWN, self.price_series[index], self.date_series[index]))
             else:
-                result.append(CrossOver(index, Direction.UP))
+                result.append(CrossOver(index, Direction.UP, self.price_series[index], self.date_series[index]))
         return result
 
     def find_moving_avg_diff(self) -> list:
         # return [(index, self.avg_diff_for_index(index)) for index in range(self.staring_index, len(self.data_series))]
-        larger_moving_avg = self.avg_function(self.data_series, self.large_window)
-        smaller_moving_avg = self.avg_function(self.data_series, self.smaller_window)
+        larger_moving_avg = self.avg_function(self.price_series, self.large_window)
+        smaller_moving_avg = self.avg_function(self.price_series, self.smaller_window)
         result = [None] * self.large_window
 
-        for index in range(self.large_window + 1, len(self.data_series)):
+        for index in range(self.large_window + 1, len(self.price_series)):
             result.append(smaller_moving_avg[index] - larger_moving_avg[index])
         return result
-
-
 
     def avg_diff_for_index(self, index):
         small_window, large_window = self.window_entries(index)
@@ -71,8 +72,8 @@ class CrossOverGenerator:
         return avg_diff
 
     def window_entries(self, end_pos):
-        large_window = self.data_series[end_pos - (self.large_window - 1): end_pos]
-        small_window = self.data_series[end_pos - (self.smaller_window - 1): end_pos]
+        large_window = self.price_series[end_pos - (self.large_window - 1): end_pos]
+        small_window = self.price_series[end_pos - (self.smaller_window - 1): end_pos]
         return small_window, large_window
 
 
@@ -88,10 +89,17 @@ class MovingAvgTradeSimulator:
             series = json.load(handle)
         return list(map(lambda tup: (tup[0], tup[1]), series))
 
-    def print_cross_overs(self):
+    def get_cross_overs(self):
         date_open_series = self.kite_series()
         price_series = list(map(lambda tup: tup[1], date_open_series))
-        cross_overs = CrossOverGenerator(price_series, self.smaller_window, self.larger_window).find_cross_overs()
+        date_series = list(map(lambda tup: tup[0], date_open_series))
+
+        cross_overs = CrossOverGenerator(price_series, date_series, self.smaller_window, self.larger_window) \
+            .find_cross_overs()
+        return cross_overs
+
+    def print_cross_overs(self):
+        cross_overs = self.get_cross_overs()
         for cross in cross_overs:
             index = cross.index
             direction = cross.direction
@@ -99,11 +107,84 @@ class MovingAvgTradeSimulator:
                 date_open_series[index][0], price_series[index],
                 Direction.UP if direction is Direction.DOWN else Direction.DOWN, direction))
 
+
+class Trade:
+
+    def __init__(self, buy_price, sell_price, total_stocks, total_profit, buy_date, sell_date):
+        self.sell_date = sell_date
+        self.buy_date = buy_date
+        self.total_stocks = total_stocks
+        self.total_profit = total_profit
+        self.sell_price = sell_price
+        self.buy_price = buy_price
+
+    def __str__(self):
+        result = {"sell_date": self.sell_date,
+                  "buy_date": self.buy_date,
+                  "total_stocks": self.total_stocks,
+                  "total_profit": self.total_profit,
+                  "sell_price": self.sell_price,
+                  "buy_pricee": self.buy_price}
+        return json.dumps(result, indent=1)
+
+
 class TradeSimulator:
-    def __init__(self, cross_overs):
+    def __init__(self, cross_overs, money):
         self.cross_overs = cross_overs
+        self.money = money
+        self.cur_stocks = 0
+        self.buy_price = 0
+        self.buy_date = None
+
+    def execute_trades(self):
+        trades = []
+        for cross_over in self.cross_overs:
+            direction = cross_over.direction
+            price = cross_over.price
+            date = cross_over.date
+            if direction is Direction.UP:
+                self.buy_price = price
+                self.cur_stocks = int(self.money / cross_over.price)
+                self.buy_date = date
+            else:
+                profit_per_stock = price - self.buy_price
+                total_profit = profit_per_stock * self.cur_stocks
+                trades.append(Trade(self.buy_price, price, self.cur_stocks, total_profit, self.buy_date, date))
+                self.buy_price = 0
+                self.cur_stocks = 0
+                self.buy_date = None
+        return trades
+
 
 if __name__ == '__main__':
-    file_name = "ADANIPORTS_3861249.json"
+    file_name = "BPCL_134657.json"
 
-    MovingAvgTradeSimulator(file_name, 3, 21).print_cross_overs()
+    simulator = MovingAvgTradeSimulator(file_name, 5, 15)
+    cross_overs = simulator.get_cross_overs()
+    trade_simulator = TradeSimulator(cross_overs, 10000)
+    trades = trade_simulator.execute_trades()
+
+    net_profit = 0
+    profitable_trades, loss_making_trades = 0, 0
+    only_profit, only_loss = 0, 0
+
+    for trade in trades:
+        print(trade)
+        trade_profit = trade.total_profit
+        net_profit = net_profit + trade_profit
+        if trade_profit > 0:
+            only_profit = only_profit + trade_profit
+            profitable_trades = profitable_trades + 1
+        else:
+            only_loss = loss_making_trades - trade_profit
+            loss_making_trades = loss_making_trades + 1
+
+    print("total profit earned {} in {} trades".format(net_profit, len(trades)))
+    result = {
+        "net_profit": net_profit,
+        "profitable_trades": profitable_trades,
+        "only_profit": only_profit,
+        "loss_making_trades": loss_making_trades,
+        "only_loss": only_loss
+    }
+    print(json.dumps(result, indent=1))
