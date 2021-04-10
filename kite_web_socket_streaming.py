@@ -6,7 +6,6 @@ from kiteconnect import KiteConnect
 
 from alerts import Alert
 from kite_util import KiteUtil
-from bse_util import BseUtil
 from general_util import setup_logger
 from postgres_io import PostgresIO
 
