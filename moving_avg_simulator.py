@@ -40,7 +40,7 @@ class CrossOverGenerator:
     def find_cross_overs(self):
         result = []
         moving_avg_diff = self.find_moving_avg_diff()
-        for index in range(1, len(moving_avg_diff)):
+        for index in range(self.large_window + 1, len(moving_avg_diff)):
             prev_diff = moving_avg_diff[index - 1]
             cur_diff = moving_avg_diff[index]
             if prev_diff > 0 and cur_diff > 0 or prev_diff < 0 and cur_diff < 0:
@@ -95,12 +95,15 @@ class MovingAvgTradeSimulator:
         for cross in cross_overs:
             index = cross.index
             direction = cross.direction
-            print("{}: {} day - {} day moving avg changed it's direction from {} to {}".format(
-                date_open_series[index][0], self.smaller_window, self.larger_window,
+            print("{}: price: {} \t direction from {} to {}".format(
+                date_open_series[index][0], price_series[index],
                 Direction.UP if direction is Direction.DOWN else Direction.DOWN, direction))
 
+class TradeSimulator:
+    def __init__(self, cross_overs):
+        self.cross_overs = cross_overs
 
 if __name__ == '__main__':
     file_name = "ADANIPORTS_3861249.json"
 
-    MovingAvgTradeSimulator(file_name, 5, 15).print_cross_overs()
+    MovingAvgTradeSimulator(file_name, 3, 21).print_cross_overs()
