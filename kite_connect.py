@@ -65,8 +65,8 @@ def date_range(start, end, intv):
 
 
 def get_date_ranges() -> list:
-    end_date = "20200401"
-    start_date = "20210331"
+    end_date = "20190401"
+    start_date = "20200331"
     number_of_days = 365  # got online
     max_interval_length_days_for_zerodha_api = 80
     number_of_intervals = int(number_of_days / max_interval_length_days_for_zerodha_api) + 1
@@ -106,7 +106,7 @@ def get_share_price_info(meta_line):
         except:
             print("Error while processing for interval {} - {}\n".format(start_date, end_date) + res.text + "\n" +
                   str(res.request) + "\n" + res.url)
-    with open('/data/kite_websocket_data/historical/{}_{}.json'.format(company_name, instrument_code), 'w') as handle:
+    with open('/data/kite_websocket_data/historical/2019_20/{}_{}.json'.format(company_name, instrument_code), 'w') as handle:
         json.dump(result, handle, indent=1, default=str)
 
 

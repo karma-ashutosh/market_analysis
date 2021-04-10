@@ -1,5 +1,8 @@
 import json
 from enum import Enum
+from general_util import json_arr_to_csv
+
+file_name_prefix = "/data/kite_websocket_data/historical/2020_21/"
 
 
 class Direction(Enum):
@@ -84,7 +87,6 @@ class MovingAvgTradeSimulator:
         self.larger_window = larger_window
 
     def kite_series(self):
-        file_name_prefix = "/data/kite_websocket_data/historical/"
         with open(file_name_prefix + self.file_name) as handle:
             series = json.load(handle)
         return list(map(lambda tup: (tup[0], tup[1]), series))
@@ -176,11 +178,11 @@ def run_trades_for_file(file_name):
             loss_making_trades = loss_making_trades + 1
     # print("total profit earned {} in {} trades".format(net_profit, len(trades)))
     result = {
-        "net_profit": net_profit,
+        "net_profit": int(net_profit),
         "profitable_trades": profitable_trades,
-        "only_profit": only_profit,
+        "only_profit": int(only_profit),
         "loss_making_trades": loss_making_trades,
-        "only_loss": only_loss
+        "only_loss": int(only_loss)
     }
     return result
 
@@ -197,7 +199,11 @@ if __name__ == '__main__':
      'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
      'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json', 'WIPRO_969473.json']
 
+    j_arr = []
     for name in file_names:
         result = run_trades_for_file(name)
-        print("result for: {} is \n{}\n\n===================\n\n".format(name, json.dumps(result, indent=1)))
+        result['file_name'] = name
+        j_arr.append(result)
+    json_arr_to_csv(j_arr, "/tmp/output_20.csv")
+
 
