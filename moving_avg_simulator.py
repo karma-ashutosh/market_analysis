@@ -2,7 +2,6 @@ import json
 from enum import Enum
 from general_util import json_arr_to_csv
 
-file_name_prefix = "/data/kite_websocket_data/historical/2020_21/"
 
 
 class Direction(Enum):
@@ -67,13 +66,6 @@ class CrossOverGenerator:
             result.append(smaller_moving_avg[index] - larger_moving_avg[index])
         return result
 
-    def avg_diff_for_index(self, index):
-        small_window, large_window = self.window_entries(index)
-        small_avg = self.avg_func(small_window)
-        large_avg = self.avg_func(large_window)
-        avg_diff = small_avg - large_avg
-        return avg_diff
-
     def window_entries(self, end_pos):
         large_window = self.price_series[end_pos - (self.large_window - 1): end_pos]
         small_window = self.price_series[end_pos - (self.smaller_window - 1): end_pos]
@@ -85,6 +77,9 @@ class MovingAvgTradeSimulator:
         self.file_name = file_name
         self.smaller_window = smaller_window
         self.larger_window = larger_window
+        self.date_open_series = self.kite_series()
+        self.price_series = list(map(lambda tup: tup[1], self.date_open_series))
+        self.date_series = list(map(lambda tup: tup[0], self.date_open_series))
 
     def kite_series(self):
         with open(file_name_prefix + self.file_name) as handle:
@@ -92,11 +87,8 @@ class MovingAvgTradeSimulator:
         return list(map(lambda tup: (tup[0], tup[1]), series))
 
     def get_cross_overs(self):
-        date_open_series = self.kite_series()
-        price_series = list(map(lambda tup: tup[1], date_open_series))
-        date_series = list(map(lambda tup: tup[0], date_open_series))
 
-        cross_overs = CrossOverGenerator(price_series, date_series, self.smaller_window, self.larger_window) \
+        cross_overs = CrossOverGenerator(self.price_series, self.date_series, self.smaller_window, self.larger_window) \
             .find_cross_overs()
         return cross_overs
 
@@ -106,7 +98,7 @@ class MovingAvgTradeSimulator:
             index = cross.index
             direction = cross.direction
             print("{}: price: {} \t direction from {} to {}".format(
-                date_open_series[index][0], price_series[index],
+                self.date_open_series[index][0], self.price_series[index],
                 Direction.UP if direction is Direction.DOWN else Direction.DOWN, direction))
 
 
@@ -120,13 +112,16 @@ class Trade:
         self.sell_price = sell_price
         self.buy_price = buy_price
 
+    def to_json(self):
+        return {"sell_date": self.sell_date,
+                "buy_date": self.buy_date,
+                "total_stocks": self.total_stocks,
+                "total_profit": self.total_profit,
+                "sell_price": self.sell_price,
+                "buy_price": self.buy_price}
+
     def __str__(self):
-        result = {"sell_date": self.sell_date,
-                  "buy_date": self.buy_date,
-                  "total_stocks": self.total_stocks,
-                  "total_profit": self.total_profit,
-                  "sell_price": self.sell_price,
-                  "buy_pricee": self.buy_price}
+        result = self.to_json()
         return json.dumps(result, indent=1)
 
 
@@ -158,16 +153,26 @@ class TradeSimulator:
         return trades
 
 
-def run_trades_for_file(file_name):
+def run_trades_for_file(file_name, debug=False):
+    trades = simulated_trades(file_name)
+    return profit_loss_analysis(debug, trades)
+
+
+def simulated_trades(file_name):
     simulator = MovingAvgTradeSimulator(file_name, 5, 15)
     cross_overs = simulator.get_cross_overs()
     trade_simulator = TradeSimulator(cross_overs, 10000)
     trades = trade_simulator.execute_trades()
+    return trades
+
+
+def profit_loss_analysis(debug, trades):
     net_profit = 0
     profitable_trades, loss_making_trades = 0, 0
     only_profit, only_loss = 0, 0
     for trade in trades:
-        # print(trade)
+        if debug:
+            print(trade)
         trade_profit = trade.total_profit
         net_profit = net_profit + trade_profit
         if trade_profit > 0:
@@ -176,7 +181,8 @@ def run_trades_for_file(file_name):
         else:
             only_loss = loss_making_trades - trade_profit
             loss_making_trades = loss_making_trades + 1
-    # print("total profit earned {} in {} trades".format(net_profit, len(trades)))
+    if debug:
+        print("total profit earned {} in {} trades".format(net_profit, len(trades)))
     result = {
         "net_profit": int(net_profit),
         "profitable_trades": profitable_trades,
@@ -187,23 +193,48 @@ def run_trades_for_file(file_name):
     return result
 
 
-if __name__ == '__main__':
-    file_names = ['ADANIPORTS_3861249.json', 'ASIANPAINT_60417.json', 'BAJAJ-AUTO_4267265.json', 'BAJAJFINSV_4268801.json',
-     'BHARTIARTL_2714625.json', 'BPCL_134657.json', 'BRITANNIA_140033.json', 'CIPLA_177665.json',
-     'DIVISLAB_2800641.json', 'DRREDDY_225537.json', 'EICHERMOT_232961.json', 'GRASIM_315393.json',
-     'HCLTECH_1850625.json', 'HDFC_340481.json', 'HDFCBANK_341249.json', 'HEROMOTOCO_345089.json',
-     'HINDPETRO_359937.json', 'HINDUNILVR_356865.json', 'INDUSINDBK_1346049.json', 'INFY_408065.json',
-     'IOC_415745.json', 'ITC_424961.json', 'JSWSTEEL_3001089.json', 'KOTAKBANK_492033.json', 'LT_2939649.json',
-     'MARUTI_2815745.json', 'M&M_519937.json', 'NESTLEIND_4598529.json', 'NTPC_2977281.json', 'ONGC_633601.json',
-     'POWERGRID_3834113.json', 'RELIANCE_738561.json', 'SAIL_758529.json', 'SBILIFE_5582849.json', 'SBIN_779521.json',
-     'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
-     'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json', 'WIPRO_969473.json']
-
+def process_for_all_files(all_trades_path_wo_ext, summary_path_wo_ext):
+    file_names = ['ADANIPORTS_3861249.json', 'ASIANPAINT_60417.json', 'BAJAJ-AUTO_4267265.json',
+                  'BAJAJFINSV_4268801.json',
+                  'BHARTIARTL_2714625.json', 'BPCL_134657.json', 'BRITANNIA_140033.json', 'CIPLA_177665.json',
+                  'DIVISLAB_2800641.json', 'DRREDDY_225537.json', 'EICHERMOT_232961.json', 'GRASIM_315393.json',
+                  'HCLTECH_1850625.json', 'HDFC_340481.json', 'HDFCBANK_341249.json', 'HEROMOTOCO_345089.json',
+                  'HINDPETRO_359937.json', 'HINDUNILVR_356865.json', 'INDUSINDBK_1346049.json', 'INFY_408065.json',
+                  'IOC_415745.json', 'ITC_424961.json', 'JSWSTEEL_3001089.json', 'KOTAKBANK_492033.json',
+                  'LT_2939649.json',
+                  'MARUTI_2815745.json', 'M&M_519937.json', 'NESTLEIND_4598529.json', 'NTPC_2977281.json',
+                  'ONGC_633601.json',
+                  'POWERGRID_3834113.json', 'RELIANCE_738561.json', 'SAIL_758529.json', 'SBILIFE_5582849.json',
+                  'SBIN_779521.json',
+                  'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
+                  'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json',
+                  'WIPRO_969473.json']
     j_arr = []
+    all_trades = []
     for name in file_names:
-        result = run_trades_for_file(name)
-        result['file_name'] = name
+        stock_symbol = name.replace(".json", "")
+
+        trades = simulated_trades(name)
+        trades_json = [trade.to_json() for trade in trades]
+        for trade in trades_json:
+            trade['symbol'] = stock_symbol
+        all_trades.extend(trades_json)
+
+        result = profit_loss_analysis(debug=False, trades=trades)
+        result['symbol'] = stock_symbol
         j_arr.append(result)
-    json_arr_to_csv(j_arr, "/tmp/output_20.csv")
+
+    json_arr_to_csv(all_trades, all_trades_path_wo_ext + ".csv")
+    with open(all_trades_path_wo_ext + ".json", 'w') as handle:
+        json.dump(all_trades, handle, indent=1)
+
+    json_arr_to_csv(j_arr, summary_path_wo_ext + ".csv")
+    with open(summary_path_wo_ext + ".json", 'w') as handle:
+        json.dump(j_arr, handle, indent=1)
 
 
+if __name__ == '__main__':
+    # result = run_trades_for_file("NTPC_2977281.json", debug=True)
+    for year in ("2019_20", "2020_21"):
+        file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
+        process_for_all_files("/tmp/all_trades_{}".format(year), "/tmp/trading_summary_{}".format(year))
