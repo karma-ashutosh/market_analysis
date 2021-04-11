@@ -2,6 +2,21 @@ import json
 from enum import Enum
 from general_util import json_arr_to_csv
 
+file_names = ['ADANIPORTS_3861249.json', 'ASIANPAINT_60417.json', 'BAJAJ-AUTO_4267265.json',
+              'BAJAJFINSV_4268801.json',
+              'BHARTIARTL_2714625.json', 'BPCL_134657.json', 'BRITANNIA_140033.json', 'CIPLA_177665.json',
+              'DIVISLAB_2800641.json', 'DRREDDY_225537.json', 'EICHERMOT_232961.json', 'GRASIM_315393.json',
+              'HCLTECH_1850625.json', 'HDFC_340481.json', 'HDFCBANK_341249.json', 'HEROMOTOCO_345089.json',
+              'HINDPETRO_359937.json', 'HINDUNILVR_356865.json', 'INDUSINDBK_1346049.json', 'INFY_408065.json',
+              'IOC_415745.json', 'ITC_424961.json', 'JSWSTEEL_3001089.json', 'KOTAKBANK_492033.json',
+              'LT_2939649.json',
+              'MARUTI_2815745.json', 'M&M_519937.json', 'NESTLEIND_4598529.json', 'NTPC_2977281.json',
+              'ONGC_633601.json',
+              'POWERGRID_3834113.json', 'RELIANCE_738561.json', 'SAIL_758529.json', 'SBILIFE_5582849.json',
+              'SBIN_779521.json',
+              'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
+              'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json',
+              'WIPRO_969473.json']
 
 
 class Direction(Enum):
@@ -16,6 +31,13 @@ class CrossOver:
         self.price = price
         self.date = date
 
+    def json(self):
+        return {
+            "date": self.date,
+            "direction": self.direction.name,
+            "price": self.price
+        }
+
 
 class CrossOverGenerator:
     def __init__(self, price_series: list, date_series: list, smaller_window: int, large_window: int):
@@ -26,6 +48,7 @@ class CrossOverGenerator:
         self.staring_index = large_window - 1
         if large_window <= smaller_window:
             raise Exception("larger window must be larger than smaller window")
+
 
     @staticmethod
     def avg_function(data_series, window_size):
@@ -87,7 +110,6 @@ class MovingAvgTradeSimulator:
         return list(map(lambda tup: (tup[0], tup[1]), series))
 
     def get_cross_overs(self):
-
         cross_overs = CrossOverGenerator(self.price_series, self.date_series, self.smaller_window, self.larger_window) \
             .find_cross_overs()
         return cross_overs
@@ -158,8 +180,8 @@ def run_trades_for_file(file_name, debug=False):
     return profit_loss_analysis(debug, trades)
 
 
-def simulated_trades(file_name):
-    simulator = MovingAvgTradeSimulator(file_name, 5, 15)
+def simulated_trades(file_name, smaller_window, larger_window):
+    simulator = MovingAvgTradeSimulator(file_name, smaller_window, larger_window)
     cross_overs = simulator.get_cross_overs()
     trade_simulator = TradeSimulator(cross_overs, 10000)
     trades = trade_simulator.execute_trades()
@@ -193,36 +215,8 @@ def profit_loss_analysis(debug, trades):
     return result
 
 
-def process_for_all_files(all_trades_path_wo_ext, summary_path_wo_ext):
-    file_names = ['ADANIPORTS_3861249.json', 'ASIANPAINT_60417.json', 'BAJAJ-AUTO_4267265.json',
-                  'BAJAJFINSV_4268801.json',
-                  'BHARTIARTL_2714625.json', 'BPCL_134657.json', 'BRITANNIA_140033.json', 'CIPLA_177665.json',
-                  'DIVISLAB_2800641.json', 'DRREDDY_225537.json', 'EICHERMOT_232961.json', 'GRASIM_315393.json',
-                  'HCLTECH_1850625.json', 'HDFC_340481.json', 'HDFCBANK_341249.json', 'HEROMOTOCO_345089.json',
-                  'HINDPETRO_359937.json', 'HINDUNILVR_356865.json', 'INDUSINDBK_1346049.json', 'INFY_408065.json',
-                  'IOC_415745.json', 'ITC_424961.json', 'JSWSTEEL_3001089.json', 'KOTAKBANK_492033.json',
-                  'LT_2939649.json',
-                  'MARUTI_2815745.json', 'M&M_519937.json', 'NESTLEIND_4598529.json', 'NTPC_2977281.json',
-                  'ONGC_633601.json',
-                  'POWERGRID_3834113.json', 'RELIANCE_738561.json', 'SAIL_758529.json', 'SBILIFE_5582849.json',
-                  'SBIN_779521.json',
-                  'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
-                  'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json',
-                  'WIPRO_969473.json']
-    j_arr = []
-    all_trades = []
-    for name in file_names:
-        stock_symbol = name.replace(".json", "")
-
-        trades = simulated_trades(name)
-        trades_json = [trade.to_json() for trade in trades]
-        for trade in trades_json:
-            trade['symbol'] = stock_symbol
-        all_trades.extend(trades_json)
-
-        result = profit_loss_analysis(debug=False, trades=trades)
-        result['symbol'] = stock_symbol
-        j_arr.append(result)
+def process_for_all_files(all_trades_path_wo_ext, summary_path_wo_ext, smaller_window, larger_window):
+    all_trades, j_arr = get_trades_and_compiled_summary(larger_window, smaller_window)
 
     json_arr_to_csv(all_trades, all_trades_path_wo_ext + ".csv")
     with open(all_trades_path_wo_ext + ".json", 'w') as handle:
@@ -233,8 +227,49 @@ def process_for_all_files(all_trades_path_wo_ext, summary_path_wo_ext):
         json.dump(j_arr, handle, indent=1)
 
 
+def get_trades_and_compiled_summary(larger_window, smaller_window):
+    j_arr = []
+    all_trades = []
+    for name in file_names:
+        stock_symbol = name.replace(".json", "")
+
+        trades = simulated_trades(name, smaller_window, larger_window)
+        trades_json = [trade.to_json() for trade in trades]
+        for trade in trades_json:
+            trade['symbol'] = stock_symbol
+        all_trades.extend(trades_json)
+
+        result = profit_loss_analysis(debug=False, trades=trades)
+        result['symbol'] = stock_symbol
+        j_arr.append(result)
+    return all_trades, j_arr
+
+
+def get_cross_over_jarr(file_name: str):
+    simulator = MovingAvgTradeSimulator(file_name, 5, 15)
+    cross_overs = simulator.get_cross_overs()
+    j_arr = []
+    for cross_over in cross_overs:
+        d = cross_over.json()
+        d["symbol"] = file_name.replace(".json", "")
+        j_arr.append(d)
+    return j_arr
+
+
+def generate_cross_over_data(target_file_wo_ext):
+    result = []
+    for file_name in file_names:
+        result.extend(get_cross_over_jarr(file_name))
+    with open(target_file_wo_ext + ".json", 'w') as handle:
+        json.dump(result, handle)
+    json_arr_to_csv(result, target_file_wo_ext + '.csv')
+
+
+
 if __name__ == '__main__':
-    # result = run_trades_for_file("NTPC_2977281.json", debug=True)
-    for year in ("2019_20", "2020_21"):
-        file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
-        process_for_all_files("/tmp/all_trades_{}".format(year), "/tmp/trading_summary_{}".format(year))
+    # for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
+    #     file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
+    #     process_for_all_files("/tmp/all_trades_{}".format(year), "/tmp/trading_summary_{}".format(year), 5, 15)
+
+    file_name_prefix = "/data/kite_websocket_data/historical/2021/"
+    generate_cross_over_data("/tmp/cross_overs_till_apr_11")
