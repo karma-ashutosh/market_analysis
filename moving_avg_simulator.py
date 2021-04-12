@@ -49,7 +49,6 @@ class CrossOverGenerator:
         if large_window <= smaller_window:
             raise Exception("larger window must be larger than smaller window")
 
-
     @staticmethod
     def avg_function(data_series, window_size):
         smoothing_factor = 2
@@ -228,7 +227,7 @@ def process_for_all_files(all_trades_path_wo_ext, summary_path_wo_ext, smaller_w
 
 
 def get_trades_and_compiled_summary(larger_window, smaller_window):
-    j_arr = []
+    summary = []
     all_trades = []
     for name in file_names:
         stock_symbol = name.replace(".json", "")
@@ -241,8 +240,8 @@ def get_trades_and_compiled_summary(larger_window, smaller_window):
 
         result = profit_loss_analysis(debug=False, trades=trades)
         result['symbol'] = stock_symbol
-        j_arr.append(result)
-    return all_trades, j_arr
+        summary.append(result)
+    return all_trades, summary
 
 
 def get_cross_over_jarr(file_name: str):
@@ -265,11 +264,36 @@ def generate_cross_over_data(target_file_wo_ext):
     json_arr_to_csv(result, target_file_wo_ext + '.csv')
 
 
+def generate_matrix(min_ranges: list, max_ranges: list, output_file_wo_ext):
+    result = []
+    for larger_window in max_ranges:
+        for smaller_window in min_ranges:
+            _, summary = get_trades_and_compiled_summary(larger_window, smaller_window)
+            for e in summary:
+                result.append({
+                    "symbol": e["symbol"],
+                    "profit": e["net_profit"],
+                    "smaller_window": smaller_window,
+                    "larger_window": larger_window
+                })
+    result = list(sorted(result, key=lambda d: d['symbol']))
+    # with open(output_file_wo_ext + ".json", 'w') as handle:
+    #     json.dump(result, handle, indent=2)
+    json_arr_to_csv(result, output_file_wo_ext + ".csv")
+
 
 if __name__ == '__main__':
+
+    # run simulation with profit loss analysis
     # for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
     #     file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
     #     process_for_all_files("/tmp/all_trades_{}".format(year), "/tmp/trading_summary_{}".format(year), 5, 15)
 
-    file_name_prefix = "/data/kite_websocket_data/historical/2021/"
-    generate_cross_over_data("/tmp/cross_overs_till_apr_11")
+    # generate cross over points with emwa to bet for coming times
+    # file_name_prefix = "/data/kite_websocket_data/historical/2021/"
+    # generate_cross_over_data("/tmp/cross_overs_till_apr_11")
+
+    # generate data log for identifying stock wise window size
+    for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
+        file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
+        generate_matrix([1, 2, 3, 4, 5], [15, 21, 25, 28, 35], "/tmp/multi_window/simulation_{}".format(year))
