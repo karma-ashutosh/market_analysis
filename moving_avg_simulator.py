@@ -66,6 +66,8 @@ class CrossOverGenerator:
 
     def find_cross_overs(self):
         result = []
+        rsis=[]
+        rsi_day=7
         moving_avg_diff = self.find_moving_avg_diff()
         for index in range(self.large_window + 1, len(moving_avg_diff)):
             prev_diff = moving_avg_diff[index - 1]
@@ -73,9 +75,14 @@ class CrossOverGenerator:
             if prev_diff > 0 and cur_diff > 0 or prev_diff < 0 and cur_diff < 0:
                 continue
             elif prev_diff > 0:
-                result.append(CrossOver(index, Direction.DOWN, self.price_series[index], self.date_series[index]))
+            	# print(Direction.DOWN)
+            	rsi=self.find_rsi(self.price_series[index-rsi_day:index])
+            	result.append((CrossOver(index, Direction.DOWN, self.price_series[index], self.date_series[index]),rsi))
             else:
-                result.append(CrossOver(index, Direction.UP, self.price_series[index], self.date_series[index]))
+            	rsi=self.find_rsi(self.price_series[index-rsi_day:index])
+            	# print(Direction.UP)
+            	result.append((CrossOver(index, Direction.UP, self.price_series[index], self.date_series[index]),rsi))
+            	# rsis.append(rsi)
         return result
 
     def find_moving_avg_diff(self) -> list:
@@ -94,6 +101,38 @@ class CrossOverGenerator:
         return small_window, large_window
 
 
+    def find_rsi(self, price_lst):
+    	gain=0
+    	loss=0
+    	days=len(price_lst)
+    	gain_count=0
+    	loss_count=0
+
+    	# print(price_lst)
+
+    	for i in range(1,len(price_lst)):
+    		if price_lst[i]>price_lst[i-1]:
+    			gain+= (price_lst[i]-price_lst[i-1])/price_lst[i-1]*100
+    			gain_count+=1
+    		if price_lst[i]<price_lst[i-1]:
+    			loss+= (price_lst[i]-price_lst[i-1])/price_lst[i-1]*100
+    			loss_count+=1
+    	try:
+    		gain= gain/gain_count
+    	except:
+    		gain=0
+    	try:
+    		loss= loss/loss_count
+    	except:
+    		loss=0
+    	# print(gain, loss)
+
+    	try:
+    		return(100- (100/(1+((gain/days)/(-1*loss/days)))))
+    	except:
+    		return(0)
+
+
 class MovingAvgTradeSimulator:
     def __init__(self, file_name, smaller_window, larger_window):
         self.file_name = file_name
@@ -106,7 +145,7 @@ class MovingAvgTradeSimulator:
     def kite_series(self):
         with open(file_name_prefix + self.file_name) as handle:
             series = json.load(handle)
-        return list(map(lambda tup: (tup[0], tup[1]), series))
+        return list(map(lambda tup: (tup[0], tup[4]), series))
 
     def get_cross_overs(self):
         cross_overs = CrossOverGenerator(self.price_series, self.date_series, self.smaller_window, self.larger_window) \
@@ -114,7 +153,7 @@ class MovingAvgTradeSimulator:
         return cross_overs
 
     def print_cross_overs(self):
-        cross_overs = self.get_cross_overs()
+        cross_overs,rsis = self.get_cross_overs()
         for cross in cross_overs:
             index = cross.index
             direction = cross.direction
@@ -160,6 +199,7 @@ class TradeSimulator:
             direction = cross_over.direction
             price = cross_over.price
             date = cross_over.date
+            rsi=cros_over.rsi
             if direction is Direction.UP:
                 self.buy_price = price
                 self.cur_stocks = int(self.money / cross_over.price)
@@ -167,7 +207,7 @@ class TradeSimulator:
             else:
                 profit_per_stock = price - self.buy_price
                 total_profit = profit_per_stock * self.cur_stocks
-                trades.append(Trade(self.buy_price, price, self.cur_stocks, total_profit, self.buy_date, date))
+                trades.append(Trade(self.buy_price, price, self.cur_stocks, total_profit, self.buy_date, date,rsi))
                 self.buy_price = 0
                 self.cur_stocks = 0
                 self.buy_date = None
@@ -232,14 +272,16 @@ def get_trades_and_compiled_summary(larger_window, smaller_window):
     for name in file_names:
         stock_symbol = name.replace(".json", "")
 
-        trades = simulated_trades(name, smaller_window, larger_window)
+        trades,rsis = simulated_trades(name, smaller_window, larger_window)
         trades_json = [trade.to_json() for trade in trades]
         for trade in trades_json:
             trade['symbol'] = stock_symbol
+            trade['rsi']=rsis
         all_trades.extend(trades_json)
 
         result = profit_loss_analysis(debug=False, trades=trades)
         result['symbol'] = stock_symbol
+        print(result)
         summary.append(result)
     return all_trades, summary
 
@@ -285,15 +327,16 @@ def generate_matrix(min_ranges: list, max_ranges: list, output_file_wo_ext):
 if __name__ == '__main__':
 
     # run simulation with profit loss analysis
-    # for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
-    #     file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
-    #     process_for_all_files("/tmp/all_trades_{}".format(year), "/tmp/trading_summary_{}".format(year), 5, 15)
+    for year in (["2020_21"]):
+        file_name_prefix = "./../historical/{}/".format(year)
+        print(file_name_prefix)
+        process_for_all_files("./tmp/all_trades_{}".format(year), "./tmp/trading_summary_{}".format(year), 5, 15)	
 
     # generate cross over points with emwa to bet for coming times
     # file_name_prefix = "/data/kite_websocket_data/historical/2021/"
     # generate_cross_over_data("/tmp/cross_overs_till_apr_11")
 
     # generate data log for identifying stock wise window size
-    for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
-        file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
-        generate_matrix([1, 2, 3, 4, 5], [15, 21, 25, 28, 35], "/tmp/multi_window/simulation_{}".format(year))
+    # for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
+    #     file_name_prefix = "/data/kite_websocket_data/historical/{}/".format(year)
+    #     generate_matrix([1, 2, 3, 4, 5], [15, 21, 25, 28, 35], "/tmp/multi_window/simulation_{}".format(year))
