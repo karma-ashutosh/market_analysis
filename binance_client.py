@@ -1,6 +1,7 @@
-from constants import BINANCE
 from binance.client import Client
-from binance.websockets import BinanceSocketManager, BinanceClientFactory
+from binance.websockets import BinanceSocketManager
+
+from constants import BINANCE
 
 
 class BinanceDepth:
@@ -10,13 +11,13 @@ class BinanceDepth:
         self.taker_by_base_asset_vol = binance_depth_arr[9]
         self.trade_count = binance_depth_arr[8]
         self.quote_asset_vol = binance_depth_arr[7]
-        self.close_time = binance_depth_arr[6]
-        self.volume = binance_depth_arr[5]
-        self.close = binance_depth_arr[4]
-        self.low = binance_depth_arr[3]
-        self.high = binance_depth_arr[2]
-        self.open = binance_depth_arr[1]
-        self.open_time = binance_depth_arr[0]
+        self.close_time = int(binance_depth_arr[6])
+        self.volume = float(binance_depth_arr[5])
+        self.close = float(binance_depth_arr[4])
+        self.low = float(binance_depth_arr[3])
+        self.high = float(binance_depth_arr[2])
+        self.open = float(binance_depth_arr[1])
+        self.open_time = int(binance_depth_arr[0])
 
     def json(self):
         return {'taker_by_quote_asset_vol': self.taker_by_quote_asset_vol,
