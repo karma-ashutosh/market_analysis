@@ -1,39 +1,40 @@
-import yaml
-
+from kiteconnect import KiteConnect
 from bse_util import BseUtil
 from kite_util import KiteUtil
 from postgres_io import PostgresIO
 
-initialized = False
-bse_util: BseUtil = None
-postgres: PostgresIO = None
-kite_util: KiteUtil = None
 
+class ConnectionFactory:
+    def __init__(self, config):
+        self.config = config
+        self.postgres = None
+        self.kite_headers = None
+        self.bse_util = None
 
-def initialize():
-    global postgres, bse_util, kite_util, initialized
-    with open('./config.yml') as handle:
-        config = yaml.load(handle)
-    postgres = PostgresIO(config['postgres-config'])
-    postgres.connect()
-    bse_util = BseUtil(config, postgres)
-    kite_util = KiteUtil(postgres, config)
-    initialized = True
+    def init_all(self):
+        self.verify_or_init_posgres()
+        self.init_kite()
+        self.init_bse_util()
 
+    def verify_or_init_posgres(self):
+        if not self.postgres:
+            self.postgres = PostgresIO(self.config['postgres-config'])
+            # commented below as not running postgres as of now. To be removed once we start using db
+            # postgres.connect()
+        else:
+            print("Not initializing postgres as already initialized")
 
-def get_bse_util() -> BseUtil:
-    if not initialized:
-        initialize()
-    return bse_util
+    def init_kite(self):
+        self.verify_or_init_posgres()
+        k_util = KiteUtil(self.postgres, self.config)
+        session_info = k_util.get_current_session_info()['result'][0]
+        api_key, access_token = session_info['api_key'], session_info['access_token']
 
+        kite = KiteConnect(api_key=api_key)
+        kite.login_url()
 
-def get_postgres_util() -> PostgresIO:
-    if not initialized:
-        initialize()
-    return postgres
+        self.kite_headers = {'X-Kite-Version': '3', 'Authorization': 'token {}:{}'.format(api_key, access_token)}
 
-
-def get_kite_util() -> KiteUtil:
-    if not initialized:
-        initialize()
-    return kite_util
+    def init_bse_util(self):
+        self.verify_or_init_posgres()
+        self.bse_util = BseUtil(self.config, self.postgres)

@@ -1,25 +1,8 @@
 import json
 
+from constants import TextFileConstants
 from general_util import json_arr_to_csv
 from moving_avg_simulator_utils import MovingAvgTradeSimulator, TradeSimulator
-
-
-class Constants:
-    FILE_NAMES = ['ADANIPORTS_3861249.json', 'ASIANPAINT_60417.json', 'BAJAJ-AUTO_4267265.json',
-                  'BAJAJFINSV_4268801.json',
-                  'BHARTIARTL_2714625.json', 'BPCL_134657.json', 'BRITANNIA_140033.json', 'CIPLA_177665.json',
-                  'DIVISLAB_2800641.json', 'DRREDDY_225537.json', 'EICHERMOT_232961.json', 'GRASIM_315393.json',
-                  'HCLTECH_1850625.json', 'HDFC_340481.json', 'HDFCBANK_341249.json', 'HEROMOTOCO_345089.json',
-                  'HINDPETRO_359937.json', 'HINDUNILVR_356865.json', 'INDUSINDBK_1346049.json', 'INFY_408065.json',
-                  'IOC_415745.json', 'ITC_424961.json', 'JSWSTEEL_3001089.json', 'KOTAKBANK_492033.json',
-                  'LT_2939649.json',
-                  'MARUTI_2815745.json', 'M&M_519937.json', 'NESTLEIND_4598529.json', 'NTPC_2977281.json',
-                  'ONGC_633601.json',
-                  'POWERGRID_3834113.json', 'RELIANCE_738561.json', 'SAIL_758529.json', 'SBILIFE_5582849.json',
-                  'SBIN_779521.json',
-                  'SHREECEM_794369.json', 'SUNPHARMA_857857.json', 'TATACONSUM_878593.json', 'TATAMOTORS_884737.json',
-                  'TECHM_3465729.json', 'TITAN_897537.json', 'ULTRACEMCO_2952193.json', 'UPL_2889473.json',
-                  'WIPRO_969473.json']
 
 
 class StockPnLAnalyzer:
@@ -87,7 +70,7 @@ class CombinedCrossOverGenerator:
     @staticmethod
     def generate_cross_over_data_for_all_files(target_file_wo_ext):
         result = []
-        for file_name in Constants.FILE_NAMES:
+        for file_name in TextFileConstants.NIFTY_50_DATA_FILE_NAMES:
             result.extend(CombinedCrossOverGenerator(file_name, 5, 15).get_cross_over_jarr())
         with open(target_file_wo_ext + ".json", 'w') as handle:
             json.dump(result, handle)
@@ -97,7 +80,7 @@ class CombinedCrossOverGenerator:
 def __get_trade_summary_for_all_stocks(larger_window, smaller_window):
     summary = []
     all_trades = []
-    for name in Constants.FILE_NAMES:
+    for name in TextFileConstants.NIFTY_50_DATA_FILE_NAMES:
         stock_symbol = name.replace(".json", "")
         trade_analyzer = StockPnLAnalyzer(stock_symbol, name, smaller_window, larger_window).analyze()
         all_trades.extend(map(lambda trade: trade.to_json(), trade_analyzer.trades))

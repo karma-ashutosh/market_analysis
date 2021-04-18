@@ -76,19 +76,28 @@ class CrossOverGenerator:
         return small_window, large_window
 
 
+class KiteOHLC:
+    def __init__(self, kite_historical_api_data_point):
+        self.date = kite_historical_api_data_point[0]
+        self.open = kite_historical_api_data_point[1]
+        self.high = kite_historical_api_data_point[2]
+        self.low = kite_historical_api_data_point[3]
+        self.close = kite_historical_api_data_point[4]
+
+
 class MovingAvgTradeSimulator:
     def __init__(self, file_name, smaller_window, larger_window):
         self.file_name = file_name
         self.smaller_window = smaller_window
         self.larger_window = larger_window
-        self.date_open_series = self.kite_series()
-        self.price_series = list(map(lambda tup: tup[1], self.date_open_series))
-        self.date_series = list(map(lambda tup: tup[0], self.date_open_series))
+        self.kite_ohlc_series = self.kite_series()
+        self.price_series = list(map(lambda kite_holc: kite_holc.open, self.kite_ohlc_series))
+        self.date_series = list(map(lambda kite_ohlc: kite_ohlc.date, self.kite_ohlc_series))
 
     def kite_series(self):
         with open(self.file_name) as handle:
             series = json.load(handle)
-        return list(map(lambda tup: (tup[0], tup[1]), series))
+        return list(map(lambda tup: KiteOHLC(tup), series))
 
     def get_cross_overs(self):
         cross_overs = CrossOverGenerator(self.price_series, self.date_series, self.smaller_window, self.larger_window) \
