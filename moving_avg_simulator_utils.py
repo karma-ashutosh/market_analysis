@@ -8,16 +8,18 @@ class Direction(Enum):
 
 
 class CrossOver:
-    def __init__(self, direction: Direction, price, date):
+    def __init__(self, direction: Direction, price, date, symbol=None):
         self.direction = direction
         self.price = price
         self.date = date
+        self.symbol = None
 
     def json(self):
         return {
             "date": self.date,
             "direction": self.direction.name,
-            "price": self.price
+            "price": self.price,
+            "symbol": self.symbol
         }
 
 
@@ -86,8 +88,8 @@ class KiteOHLC:
 
 
 class MovingAvgTradeSimulator:
-    def __init__(self, file_name, smaller_window, larger_window):
-        self.file_name = file_name
+    def __init__(self, complete_file_path, smaller_window, larger_window):
+        self.file_path = complete_file_path
         self.smaller_window = smaller_window
         self.larger_window = larger_window
         self.kite_ohlc_series = self.kite_series()
@@ -95,7 +97,7 @@ class MovingAvgTradeSimulator:
         self.date_series = list(map(lambda kite_ohlc: kite_ohlc.date, self.kite_ohlc_series))
 
     def kite_series(self):
-        with open(self.file_name) as handle:
+        with open(self.file_path) as handle:
             series = json.load(handle)
         return list(map(lambda tup: KiteOHLC(tup), series))
 

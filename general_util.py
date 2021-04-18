@@ -385,5 +385,12 @@ class EventThrottler(object):
             self.window_serial_number = calculated_window_serial_number
             self.current_window_event_count = 0
 
+
+def save_csv_and_json_output(values, path):
+    json_arr_to_csv(values, path + ".csv")
+    with open(path + ".json", 'w') as handle:
+        json.dump(values, handle, indent=1)
+
+
 class Constants:
     strp_time_format1 = '%Y-%m-%d %H:%M:%S.%f'
