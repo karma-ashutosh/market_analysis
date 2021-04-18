@@ -61,3 +61,8 @@ class TextFileConstants:
 
 class URLS:
     KITE_SHARE_HISTORY_URL_FORMAT = "https://api.kite.trade/instruments/historical/{}/{}?from={}&to={}"
+
+    
+class BINANCE:
+    API_KEY = 'WnleOzNJ7wJv06cIExwFM6zs7XzQ3WMvtDyR8smuyHtOUztREwf7wXXsRJ29MXkj'
+    SECRET_KEU = 'tURXrPfdR6BSoD0wwIT4fd4YRVOcnthuHdvNqcL4USsHF2ypagjiJZS6eouqHaO5'

@@ -15,7 +15,7 @@ factory = ConnectionFactory(config)
 # factory.init_bse_util()
 # bse = factory.bse_util
 
-factory.init_kite()
+factory.init_kite_for_api()
 headers = factory.kite_headers
 
 

@@ -1,13 +1,11 @@
 import json
 from datetime import datetime
+
 import yaml
-from kiteconnect import KiteTicker
-from kiteconnect import KiteConnect
 
 from alerts import Alert
-from kite_util import KiteUtil
+from connection_factory import ConnectionFactory
 from general_util import setup_logger
-from postgres_io import PostgresIO
 
 stock_logger = setup_logger("stock_logger", "/data/kite_websocket_data/stock.log", msg_only=True)
 msg_logger = setup_logger("msg_logger", "/tmp/app.log")
@@ -48,17 +46,10 @@ def get_instruments_to_fetch():
 if __name__ == '__main__':
     with open('./config.yml') as handle:
         config = yaml.load(handle)
-    postgres = PostgresIO(config['postgres-config'])
-    # postgres.connect()
-
-    # bse = BseUtil(config, postgres)
-    k_util = KiteUtil(postgres, config)
-
-    session_info = k_util.get_current_session_info()['result'][0]
+    factory = ConnectionFactory(config)
+    factory.init_kite_for_api()
+    kws = factory.kite_web_streaming_ticker
     instruments = get_instruments_to_fetch()
-
-    kws = KiteTicker(session_info['api_key'], session_info['access_token'])
-    kite = KiteConnect(session_info['api_key'], session_info['access_token'])
 
     alert = Alert(config)
 

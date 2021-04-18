@@ -85,6 +85,7 @@ class KiteOHLC:
         self.high = kite_historical_api_data_point[2]
         self.low = kite_historical_api_data_point[3]
         self.close = kite_historical_api_data_point[4]
+        self.volume = kite_historical_api_data_point[5]
 
 
 class MovingAvgTradeSimulator:

@@ -1,5 +1,3 @@
-import json
-
 from constants import TextFileConstants
 from general_util import json_arr_to_csv, save_csv_and_json_output
 from moving_avg_simulator_utils import MovingAvgTradeSimulator, TradeSimulator
