@@ -18,6 +18,19 @@ class BinanceDepth:
         self.open = binance_depth_arr[1]
         self.open_time = binance_depth_arr[0]
 
+    def json(self):
+        return {'taker_by_quote_asset_vol': self.taker_by_quote_asset_vol,
+                'taker_by_base_asset_vol': self.taker_by_base_asset_vol,
+                'trade_count': self.trade_count,
+                'quote_asset_vol': self.quote_asset_vol,
+                'close_time': self.close_time,
+                'volume': self.volume,
+                'close': self.close,
+                'low': self.low,
+                'high': self.high,
+                'open': self.open,
+                'open_time': self.open_time}
+
 
 class InstrumentBinanceClient:
     def __init__(self, binance_client: Client, instrument_symbol: str):
@@ -51,5 +64,4 @@ if __name__ == '__main__':
     client = Client(BINANCE.API_KEY, BINANCE.SECRET_KEU)
     instrument_client = InstrumentBinanceClient(client, 'BNBBTC')
     result = instrument_client.historical_minute_wise(1)
-    result = [BinanceDepth(r) for r in result]
     x = len(result)

@@ -6,6 +6,7 @@ import yaml
 
 from connection_factory import ConnectionFactory
 from constants import TextFileConstants, URLS
+from moving_avg_simulator_utils import KiteOHLC, DataSeriesProvider
 
 with open('./config.yml') as handle:
     config = yaml.load(handle)
@@ -81,6 +82,24 @@ class Nify50LastNDaysDownloader:
             share_info = get_historical_share_ohlc(instrument_file_name.replace(".json", "").split("_")[1], date_ranges)
             with open(TextFileConstants.KITE_CURRENT_DATA + instrument_file_name, 'w') as handle:
                 json.dump(share_info, handle, indent=1, default=str)
+
+
+class KiteFileHistoricalDataProvider(DataSeriesProvider):
+    def __init__(self, file_path):
+        super().__init__()
+        self.file_path = file_path
+        self.kite_ohlc_series = self._kite_series()
+
+    def _kite_series(self):
+        with open(self.file_path) as handle:
+            series = json.load(handle)
+        return list(map(lambda tup: KiteOHLC(tup), series))
+
+    def date_series(self):
+        return list(map(lambda kite_ohlc: kite_ohlc.date, self.kite_ohlc_series))
+
+    def price_series(self):
+        return list(map(lambda kite_holc: kite_holc.open, self.kite_ohlc_series))
 
 
 if __name__ == '__main__':

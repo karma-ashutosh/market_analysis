@@ -88,19 +88,23 @@ class KiteOHLC:
         self.volume = kite_historical_api_data_point[5]
 
 
+class DataSeriesProvider:
+    def __init__(self):
+        pass
+
+    def price_series(self):
+        raise not NotImplementedError("Has to be implemented by base class")
+
+    def date_series(self):
+        raise not NotImplementedError("Has to be implemented by base class")
+
+
 class MovingAvgTradeSimulator:
-    def __init__(self, complete_file_path, smaller_window, larger_window):
-        self.file_path = complete_file_path
+    def __init__(self, provider: DataSeriesProvider, smaller_window, larger_window):
         self.smaller_window = smaller_window
         self.larger_window = larger_window
-        self.kite_ohlc_series = self.kite_series()
-        self.price_series = list(map(lambda kite_holc: kite_holc.open, self.kite_ohlc_series))
-        self.date_series = list(map(lambda kite_ohlc: kite_ohlc.date, self.kite_ohlc_series))
-
-    def kite_series(self):
-        with open(self.file_path) as handle:
-            series = json.load(handle)
-        return list(map(lambda tup: KiteOHLC(tup), series))
+        self.price_series = provider.price_series()
+        self.date_series = provider.date_series()
 
     def get_cross_overs(self):
         cross_overs = CrossOverGenerator(self.price_series, self.date_series, self.smaller_window, self.larger_window) \

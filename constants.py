@@ -66,3 +66,4 @@ class URLS:
 class BINANCE:
     API_KEY = 'WnleOzNJ7wJv06cIExwFM6zs7XzQ3WMvtDyR8smuyHtOUztREwf7wXXsRJ29MXkj'
     SECRET_KEU = 'tURXrPfdR6BSoD0wwIT4fd4YRVOcnthuHdvNqcL4USsHF2ypagjiJZS6eouqHaO5'
+    DATA_FILE_BASE_PATH = "/data/binance/"
