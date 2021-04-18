@@ -69,3 +69,4 @@ class BINANCE:
     SECRET_KEU = 'tURXrPfdR6BSoD0wwIT4fd4YRVOcnthuHdvNqcL4USsHF2ypagjiJZS6eouqHaO5'
     DATA_FILE_READ_BASE_PATH = "/data/binance/"
     DATA_FILE_WRITE_BASE_PATH = "/data/binance/"
+    SYMBOL = "BNBUSDT"

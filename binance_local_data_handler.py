@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 
 from binance.client import Client
 from binance_client import InstrumentBinanceClient, BinanceDepth
@@ -33,8 +34,22 @@ class LocalDataHandler:
         client = Client(BINANCE.API_KEY, BINANCE.SECRET_KEU)
         self.instrument_client = InstrumentBinanceClient(client, self.symbol)
 
-    def download_historical_data(self, number_of_days):
-        result = self.instrument_client.historical_minute_wise(number_of_days)
+    def download_historical_data(self, number_of_days=1):
+        if number_of_days < 1:
+            raise ValueError("Number of days has to be >= 1")
+
+        result = []
+
+        to_date = datetime.now()
+        while number_of_days > 0:
+            from_date = to_date - timedelta(days=1)
+            from_timestamp, to_timestamp = int(from_date.timestamp()) * 1000, int(to_date.timestamp()) * 1000
+            result.extend(self.instrument_client.from_to_data(from_timestamp, to_timestamp))
+            to_date = from_date
+            number_of_days = number_of_days - 1
+
+        result = sorted(result, key=lambda j_elem: j_elem[0], reverse=False)
+
         with open(self.data_file_path, 'w') as handle:
             json.dump(result, handle, indent=1)
 
@@ -45,6 +60,5 @@ class LocalDataHandler:
 
 
 if __name__ == '__main__':
-    symbol = 'BNBBTC'
-    data_handler = LocalDataHandler(symbol)
+    data_handler = LocalDataHandler(BINANCE.SYMBOL)
     data_handler.download_historical_data(7)

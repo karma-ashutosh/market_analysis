@@ -56,7 +56,11 @@ class InstrumentBinanceClient:
         bm.start_aggtrade_socket(self.instrument_symbol, consumer)
         bm.start()
 
-    def historical_minute_wise(self, num_of_days=10):
+    def from_to_data(self, from_date, to_date):
+        return self.binance_client.get_historical_klines(self.instrument_symbol, Client.KLINE_INTERVAL_1MINUTE,
+                                                         from_date, to_date)
+
+    def last_n_days_data(self, num_of_days=10):
         return self.binance_client.get_historical_klines(self.instrument_symbol, Client.KLINE_INTERVAL_1MINUTE,
                                                          "{} day ago UTC".format(num_of_days))
 
@@ -64,5 +68,5 @@ class InstrumentBinanceClient:
 if __name__ == '__main__':
     client = Client(BINANCE.API_KEY, BINANCE.SECRET_KEU)
     instrument_client = InstrumentBinanceClient(client, 'BNBBTC')
-    result = instrument_client.historical_minute_wise(1)
+    result = instrument_client.last_n_days_data(1)
     x = len(result)
