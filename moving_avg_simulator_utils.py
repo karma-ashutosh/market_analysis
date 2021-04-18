@@ -78,16 +78,6 @@ class CrossOverGenerator:
         return small_window, large_window
 
 
-class KiteOHLC:
-    def __init__(self, kite_historical_api_data_point):
-        self.date = kite_historical_api_data_point[0]
-        self.open = kite_historical_api_data_point[1]
-        self.high = kite_historical_api_data_point[2]
-        self.low = kite_historical_api_data_point[3]
-        self.close = kite_historical_api_data_point[4]
-        self.volume = kite_historical_api_data_point[5]
-
-
 class DataSeriesProvider:
     def __init__(self):
         pass

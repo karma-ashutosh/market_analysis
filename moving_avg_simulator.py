@@ -1,5 +1,3 @@
-from constants import TextFileConstants
-from kite_data_downloader import KiteFileHistoricalDataProvider
 from moving_avg_simulator_utils import MovingAvgTradeSimulator, TradeSimulator, DataSeriesProvider
 
 

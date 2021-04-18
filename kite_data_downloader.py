@@ -6,18 +6,22 @@ import yaml
 
 from connection_factory import ConnectionFactory
 from constants import TextFileConstants, URLS
-from moving_avg_simulator_utils import KiteOHLC, DataSeriesProvider
 
-with open('./config.yml') as handle:
-    config = yaml.load(handle)
+headers = {}
 
-factory = ConnectionFactory(config)
 
-# factory.init_bse_util()
-# bse = factory.bse_util
+def setup_kite_headers():
+    global headers
+    with open('./config.yml') as handle:
+        config = yaml.load(handle)
 
-factory.init_kite_for_api()
-headers = factory.kite_headers
+    factory = ConnectionFactory(config)
+
+    # factory.init_bse_util()
+    # bse = factory.bse_util
+
+    factory.init_kite_for_api()
+    headers = factory.kite_headers
 
 
 def update_instruments():
@@ -67,6 +71,7 @@ def get_historical_share_ohlc(instrument_code, date_ranges: list) -> list:
 class Nify50LastNDaysDownloader:
     def __init__(self, number_of_days=60):
         self.number_of_days = number_of_days
+        setup_kite_headers()
 
     def download(self):
         # we should ideally read the existing file, fetch the delta days worth of data and append that to existing
@@ -84,25 +89,8 @@ class Nify50LastNDaysDownloader:
                 json.dump(share_info, handle, indent=1, default=str)
 
 
-class KiteFileHistoricalDataProvider(DataSeriesProvider):
-    def __init__(self, file_path):
-        super().__init__()
-        self.file_path = file_path
-        self.kite_ohlc_series = self._kite_series()
-
-    def _kite_series(self):
-        with open(self.file_path) as handle:
-            series = json.load(handle)
-        return list(map(lambda tup: KiteOHLC(tup), series))
-
-    def date_series(self):
-        return list(map(lambda kite_ohlc: kite_ohlc.date, self.kite_ohlc_series))
-
-    def price_series(self):
-        return list(map(lambda kite_holc: kite_holc.open, self.kite_ohlc_series))
-
-
 if __name__ == '__main__':
+    setup_kite_headers()
     meta_lines = [line.strip().split("\t") for line in
                   open(TextFileConstants.NIFTY_50_INSTRUMENTS).readlines()[1:]]
 
