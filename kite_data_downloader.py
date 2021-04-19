@@ -79,7 +79,7 @@ class Nify50LastNDaysDownloader:
         # month. For now skipping this and simply using historical API on every run for preparing last 2 month of
         # data
         for instrument_file_name in TextFileConstants.NIFTY_50_DATA_FILE_NAMES:
-            today = datetime.now()
+            today = datetime.now() + timedelta(days=1)
             two_month_back = today - timedelta(days=self.number_of_days)
             start_date = two_month_back.strftime("%Y%m%d")
             end_date = today.strftime("%Y%m%d")

@@ -133,12 +133,12 @@ if __name__ == '__main__':
 
 
     # run simulation with profit loss analysis
-    for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
-        read_dir = TextFileConstants.KITE_HISTORICAL_BASE_DIR + "{}/".format(year)
-        write_dir = "/tmp/bullet1/"
-        file_paths = FilePaths(read_dir, write_dir, TextFileConstants.NIFTY_50_DATA_FILE_NAMES,
-                               TextFileConstants.NIFTY_50_SYMBOLS)
-        save_predicted_trades_and_summary(file_paths, year, 1, 3, file_to_provider_func)
+    # for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
+    #     read_dir = TextFileConstants.KITE_HISTORICAL_BASE_DIR + "{}/".format(year)
+    #     write_dir = "/tmp/bullet1/"
+    #     file_paths = FilePaths(read_dir, write_dir, TextFileConstants.NIFTY_50_DATA_FILE_NAMES,
+    #                            TextFileConstants.NIFTY_50_SYMBOLS)
+    #     save_predicted_trades_and_summary(file_paths, year, 1, 3, file_to_provider_func)
 
     # generate data log for identifying stock wise window size
     # for year in ("2015_16", "2016_17", "2017_18", "2018_19", "2019_20", "2020_21"):
@@ -149,8 +149,8 @@ if __name__ == '__main__':
     #                     file_paths, file_to_provider_func)
 
     # for giving triggers on based on current data
-    # Nify50LastNDaysDownloader(number_of_days=60).download()
-    # file_paths = FilePaths(TextFileConstants.KITE_CURRENT_DATA, TextFileConstants.KITE_DATA_BASE_DIR,
-    #                        TextFileConstants.NIFTY_50_DATA_FILE_NAMES, TextFileConstants.NIFTY_50_SYMBOLS)
-    # DailyMovingAvgIndicator(past_days=0, smaller_window=1, larger_window=5, file_paths=file_paths,
-    #                         file_to_provider_func=file_to_provider_func).generate_indicators().flush_indicators()
+    Nify50LastNDaysDownloader(number_of_days=20).download()
+    file_paths = FilePaths(TextFileConstants.KITE_CURRENT_DATA, TextFileConstants.KITE_DATA_BASE_DIR,
+                           TextFileConstants.NIFTY_50_DATA_FILE_NAMES, TextFileConstants.NIFTY_50_SYMBOLS)
+    DailyMovingAvgIndicator(past_days=0, smaller_window=1, larger_window=5, file_paths=file_paths,
+                            file_to_provider_func=file_to_provider_func).generate_indicators().flush_indicators()
