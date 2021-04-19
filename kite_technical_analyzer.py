@@ -57,14 +57,20 @@ def __get_trade_summary_for_all_stocks(larger_window, smaller_window, file_paths
         provider = path_to_provider_func(file_paths.read_base_directory + name)
         trade_analyzer = StockPnLAnalyzer(stock_symbol, provider, smaller_window, larger_window).analyze()
         all_trades.extend(map(lambda trade: trade.to_json(), trade_analyzer.trades))
-        summary.append(trade_analyzer.profit_loss)
+        summary.append(trade_analyzer.summary)
     return all_trades, summary
 
 
 def save_predicted_trades_and_summary(file_paths: FilePaths, year,
-                                      smaller_window, larger_window, file_to_provider_func):
+                                      smaller_window, larger_window, file_to_provider_func,
+                                      date_converter=lambda x: x):
     all_trades, all_trade_summary = __get_trade_summary_for_all_stocks(larger_window, smaller_window, file_paths,
                                                                        file_to_provider_func)
+
+    for trade in all_trades:
+        trade['sell_date'] = date_converter(trade['sell_date'])
+        trade['buy_date'] = date_converter(trade['buy_date'])
+
     all_trades_file = file_paths.write_base_path + "all_trades_{}_{}_{}".format(smaller_window, larger_window, year)
     summary_file = file_paths.write_base_path + "trading_summary_{}_{}_{}".format(smaller_window, larger_window, year)
     save_csv_and_json_output(all_trades, all_trades_file)
@@ -149,7 +155,7 @@ if __name__ == '__main__':
     #                     file_paths, file_to_provider_func)
 
     # for giving triggers on based on current data
-    Nify50LastNDaysDownloader(number_of_days=20).download()
+    Nify50LastNDaysDownloader(number_of_days=60).download()
     file_paths = FilePaths(TextFileConstants.KITE_CURRENT_DATA, TextFileConstants.KITE_DATA_BASE_DIR,
                            TextFileConstants.NIFTY_50_DATA_FILE_NAMES, TextFileConstants.NIFTY_50_SYMBOLS)
     DailyMovingAvgIndicator(past_days=0, smaller_window=1, larger_window=5, file_paths=file_paths,

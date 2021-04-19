@@ -8,12 +8,12 @@ class StockPnLAnalyzer:
         self.__larger_window = larger_window
         self.__smaller_window = smaller_window
         self.trades = None
-        self.profit_loss = None
+        self.summary = None
         self.data_series_provider = provider
 
     def analyze(self):
         self.trades = self.__simulated_trades()
-        self.profit_loss = self.__profit_loss_analysis()
+        self.summary = self.__profit_loss_analysis()
         return self
 
     def __simulated_trades(self):
