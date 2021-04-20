@@ -68,7 +68,7 @@ class CrossOverGenerator:
         smaller_moving_avg = self.avg_function(self.price_series, self.smaller_window)
         result = [None] * self.large_window
 
-        for index in range(self.large_window + 1, len(self.price_series)):
+        for index in range(self.large_window, len(self.price_series)):
             result.append(smaller_moving_avg[index] - larger_moving_avg[index])
         return result
 
