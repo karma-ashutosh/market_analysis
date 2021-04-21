@@ -8,18 +8,30 @@ class Direction(Enum):
 
 
 class CrossOver:
-    def __init__(self, direction: Direction, price, date, symbol=None):
+    def __init__(self, direction: Direction, price, date, last_small_avg, last_large_avg, cur_small_avg, cur_large_avg,
+                 symbol=None):
         self.direction = direction
         self.price = price
         self.date = date
-        self.symbol = None
+        self.last_small_avg = last_small_avg
+        self.last_large_avg = last_large_avg
+        self.cur_small_avg = cur_small_avg
+        self.cur_large_avg = cur_large_avg
+        self.symbol = symbol
+
+    def set_symbol(self, symbol):
+        self.symbol = symbol
 
     def json(self):
         return {
             "date": self.date,
             "direction": self.direction.name,
             "price": self.price,
-            "symbol": self.symbol
+            "symbol": self.symbol,
+            "last_small_avg": self.last_small_avg,
+            "last_large_avg": self.last_large_avg,
+            "cur_small_avg": self.cur_small_avg,
+            "cur_large_avg": self.cur_large_avg
         }
 
 
@@ -50,16 +62,18 @@ class CrossOverGenerator:
 
     def find_cross_overs(self):
         result = []
-        moving_avg_diff = self.find_moving_avg_diff()
+        moving_avg_diff, small_moving_avg, large_moving_avg = self.find_moving_avg_diff()
         for index in range(self.large_window + 1, len(moving_avg_diff)):
-            prev_diff = moving_avg_diff[index - 1]
-            cur_diff = moving_avg_diff[index]
+            prev_diff, prev_small, prev_large = moving_avg_diff[index - 1], small_moving_avg[index - 1], \
+                                                large_moving_avg[index - 1]
+            cur_diff, cur_small, cur_large = moving_avg_diff[index], small_moving_avg[index], large_moving_avg[index]
             if prev_diff > 0 and cur_diff > 0 or prev_diff < 0 and cur_diff < 0:
                 continue
-            elif prev_diff > 0:
-                result.append(CrossOver(Direction.DOWN, self.price_series[index], self.date_series[index]))
-            else:
-                result.append(CrossOver(Direction.UP, self.price_series[index], self.date_series[index]))
+            direction = Direction.DOWN if prev_diff > 0 else Direction.UP
+            result.append(CrossOver(direction,
+                                    self.price_series[index], self.date_series[index],
+                                    prev_small, prev_large,
+                                    cur_small, cur_large))
         return result
 
     def find_moving_avg_diff(self) -> list:
@@ -70,7 +84,7 @@ class CrossOverGenerator:
 
         for index in range(self.large_window, len(self.price_series)):
             result.append(smaller_moving_avg[index] - larger_moving_avg[index])
-        return result
+        return result, smaller_moving_avg, larger_moving_avg
 
     def window_entries(self, end_pos):
         large_window = self.price_series[end_pos - (self.large_window - 1): end_pos]

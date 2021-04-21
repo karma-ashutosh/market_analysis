@@ -57,6 +57,6 @@ class CombinedCrossOverGenerator:
     def get_cross_over_jarr(self):
         cross_overs = self.simulator.get_cross_overs()
         for cross_over in cross_overs:
-            cross_over.symbol = self.symbol
+            cross_over.set_symbol(self.symbol)
         return cross_overs
 
