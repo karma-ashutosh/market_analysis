@@ -125,26 +125,30 @@ class MovingAvgTradeSimulator:
 
 
 class Trade:
-    def __init__(self, symbol, buy_price, sell_price, total_stocks, total_profit, buy_date, sell_date):
+    def __init__(self, symbol, total_stocks, total_profit, buy_cross_over: CrossOver, sell_cross_over: CrossOver):
         self.symbol = symbol
-        self.sell_date = sell_date
-        self.buy_date = buy_date
         self.total_stocks = total_stocks
         self.total_profit = total_profit
-        self.sell_price = sell_price
-        self.buy_price = buy_price
+        self.buy_cross_over = buy_cross_over.json() if buy_cross_over else {}
+        self.sell_cross_over = sell_cross_over.json() if sell_cross_over else {}
 
+    @property
     def to_json(self):
-        return {"symbol": self.symbol,
-                "sell_date": self.sell_date,
-                "buy_date": self.buy_date,
+        result = {
+                "symbol": self.symbol,
                 "total_stocks": self.total_stocks,
                 "total_profit": self.total_profit,
-                "sell_price": self.sell_price,
-                "buy_price": self.buy_price}
+                }
+        for key in self.buy_cross_over.keys():
+            new_key = "buy_" + key
+            result[new_key] = self.buy_cross_over[key]
+        for key in self.sell_cross_over.keys():
+            new_key = "sell_" + key
+            result[new_key] = self.sell_cross_over[key]
+        return result
 
     def __str__(self):
-        result = self.to_json()
+        result = self.to_json
         return json.dumps(result, indent=1)
 
 
@@ -156,6 +160,7 @@ class TradeSimulator:
         self.buy_price = 0
         self.buy_date = None
         self.symbol = symbol
+        self.buy_cross_over: CrossOver = None
 
     def execute_trades(self):
         trades = []
@@ -167,11 +172,12 @@ class TradeSimulator:
                 self.buy_price = price
                 self.cur_stocks = int(self.money / cross_over.price)
                 self.buy_date = date
+                self.buy_cross_over = cross_over
             else:
                 profit_per_stock = price - self.buy_price
                 total_profit = profit_per_stock * self.cur_stocks
-                trades.append(Trade(self.symbol, self.buy_price, price, self.cur_stocks, total_profit, self.buy_date,
-                                    date))
+
+                trades.append(Trade(self.symbol,  self.cur_stocks, total_profit, self.buy_cross_over, cross_over))
                 self.buy_price = 0
                 self.cur_stocks = 0
                 self.buy_date = None

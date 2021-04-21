@@ -34,7 +34,7 @@ class StockPnLAnalyzer:
                 only_profit = only_profit + trade_profit
                 profitable_trades = profitable_trades + 1
             else:
-                only_loss = loss_making_trades - trade_profit
+                only_loss = only_loss - trade_profit
                 loss_making_trades = loss_making_trades + 1
         result = {
             "symbol": self.__symbol,
