@@ -41,5 +41,4 @@ def map_historical_k_line(historical_api_k_line):
 
         }
     }
-    print(d)
     return KLineEntity(d)
