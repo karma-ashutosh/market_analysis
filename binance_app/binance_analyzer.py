@@ -65,7 +65,7 @@ class FinTAAnalyzer(DataAnalyzer):
     def give_cur_avgs(self, data_frame: DataFrame, windows: list):
         result = {}
         for window in windows:
-            result[window] = TA.SMA(data_frame, window)
+            result[window] = TA.EMA(data_frame, window)
         return result
 
 

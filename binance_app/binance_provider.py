@@ -33,7 +33,7 @@ class TradeExecutor:
     def __init__(self, client: Client, symbol):
         self.client = client
         self.symbol = symbol
-        self.min_usdt_to_spend = 10.5
+        self.min_usdt_to_spend = 11
 
     def handle_api_exception(self, e: BinanceAPIException):
         parsed = ParsedBinanceAPIException(e)
@@ -44,7 +44,7 @@ class TradeExecutor:
 
     def buy(self, cur_price):
         try:
-            quantity = self.min_usdt_to_spend / cur_price
+            quantity = float("{:.2f}".format(self.min_usdt_to_spend / cur_price))
             print("{}\t buying {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
             return self.client.order_market_buy(symbol=self.symbol,
                                                 # side=Client.SIDE_BUY,
@@ -57,7 +57,7 @@ class TradeExecutor:
 
     def sell(self, cur_price):
         try:
-            quantity = self.min_usdt_to_spend / cur_price
+            quantity = float("{:.2f}".format(self.min_usdt_to_spend / cur_price))
             print("{}\t selling {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
             return self.client.order_market_sell(symbol=self.symbol,
                                                  # side=Client.SIDE_SELL,

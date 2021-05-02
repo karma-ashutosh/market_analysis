@@ -12,10 +12,10 @@ class KLineEntity:
         self.window_end_epoch_seconds = data['T']
         self.interval = data['i']
         self.open = data['o']
-        self.close = data['c']
-        self.high = data['h']
-        self.low = data['l']
-        self.volume = data['v']
+        self.close = float(data['c'])
+        self.high = float(data['h'])
+        self.low = float(data['l'])
+        self.volume = float(data['v'])
         self.trade_count = data['n']
 
     def raw_json(self) -> dict:
