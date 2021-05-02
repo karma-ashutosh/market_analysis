@@ -76,6 +76,7 @@ class TradeExecutor:
 
 
 class Factory:
+    # https://github.com/binance/binance-public-data/
     def __init__(self):
         self.client = Client(BINANCE.API_KEY, BINANCE.SECRET_KEU)
 
@@ -86,6 +87,7 @@ class Factory:
 
     def trade_executor(self, symbol) -> TradeExecutor:
         return TradeExecutor(self.client, symbol)
+
 
 if __name__ == '__main__':
     provider = Factory()

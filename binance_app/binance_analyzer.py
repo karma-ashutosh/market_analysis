@@ -70,10 +70,10 @@ class FinTAAnalyzer(DataAnalyzer):
 
 
 class BinanceAnalyzer:
-    def __init__(self):
+    def __init__(self, small_window=1, large_window=5):
         self.events = []
-        self.larger_window = 5
-        self.small_window = 1
+        self.larger_window = large_window
+        self.small_window = small_window
         self.window_length = self.larger_window + 2  # how much older data to keep to calculate moving avg
         self.df_cols = ['epoch_seconds', 'open', 'high', 'low', 'close', 'volume']
         self.cur_df: DataFrame = DataFrame([], columns=self.df_cols)
