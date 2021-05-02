@@ -1,5 +1,9 @@
 from kline_object import KLineEntity
 from binance_trader import BinanceTrader
+from general_util import setup_logger
+import json
+
+logger = setup_logger('binance_logger', './app.log', msg_only=True)
 
 
 class StreamManager:
@@ -12,6 +16,7 @@ class StreamManager:
         if self.__should_process(kline):
             self.__mark_even_update(kline)
             self.trader.consume(kline)
+        logger.info(json.dumps(kline_event))
 
     def __should_process(self, kline: KLineEntity):
         # return True

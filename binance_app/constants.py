@@ -75,4 +75,6 @@ class BINANCE:
     DATA_FILE_READ_BASE_PATH = "/data/binance/"
     DATA_FILE_WRITE_BASE_PATH = "/data/binance/"
     # SYMBOL = "BNBUSDT"
-    SYMBOL = "DOGEUSDT"
+    COIN = "DOGE"
+    CURRENCY = "USDT"
+    SYMBOL = COIN + CURRENCY

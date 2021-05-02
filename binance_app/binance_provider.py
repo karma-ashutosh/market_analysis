@@ -17,7 +17,7 @@ def format_prepped_request(prepped: PreparedRequest):
 {prepped.url}
 {prepped.body.format()}
 
-{body}\n\n"""
+\n\n"""
 
 
 class ParsedBinanceAPIException:
@@ -33,7 +33,7 @@ class TradeExecutor:
     def __init__(self, client: Client, symbol):
         self.client = client
         self.symbol = symbol
-        self.min_usdt_to_spend = 11
+        self.min_usdt_to_spend = 15
 
     def handle_api_exception(self, e: BinanceAPIException):
         parsed = ParsedBinanceAPIException(e)
@@ -44,7 +44,7 @@ class TradeExecutor:
 
     def buy(self, cur_price):
         try:
-            quantity = float("{:.2f}".format(self.min_usdt_to_spend / cur_price))
+            quantity = int(self.min_usdt_to_spend / cur_price) + 1
             print("{}\t buying {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
             return self.client.order_market_buy(symbol=self.symbol,
                                                 # side=Client.SIDE_BUY,
@@ -57,7 +57,7 @@ class TradeExecutor:
 
     def sell(self, cur_price):
         try:
-            quantity = float("{:.2f}".format(self.min_usdt_to_spend / cur_price))
+            quantity = self.__tradable_held_quantity()
             print("{}\t selling {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
             return self.client.order_market_sell(symbol=self.symbol,
                                                  # side=Client.SIDE_SELL,
@@ -67,6 +67,12 @@ class TradeExecutor:
                                                  )
         except BinanceAPIException as e:
             return self.handle_api_exception(e)
+
+    def __tradable_held_quantity(self):
+        account = self.client.get_account()
+        # account['balances'] = [{'asset': 'USDT', 'free': '37.98910089', 'locked': '0.00000000'}.....]
+        coin_details = next(filter(lambda x: x['asset'] == BINANCE.COIN, account['balances']))
+        return int(float(coin_details['free']))
 
 
 class Factory:
@@ -80,3 +86,7 @@ class Factory:
 
     def trade_executor(self, symbol) -> TradeExecutor:
         return TradeExecutor(self.client, symbol)
+
+if __name__ == '__main__':
+    provider = Factory()
+    provider.trade_executor(BINANCE.SYMBOL).sell(.38)
