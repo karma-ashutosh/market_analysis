@@ -14,8 +14,8 @@ class StreamManager:
             self.trader.consume(kline)
 
     def __should_process(self, kline: KLineEntity):
-        return True
-        # return kline.window_end_epoch_seconds >= self.min_event_time
+        # return True
+        return kline.window_end_epoch_seconds >= self.min_event_time
 
     def __mark_even_update(self, event: KLineEntity):
         self.min_event_time = event.window_end_epoch_seconds + 60

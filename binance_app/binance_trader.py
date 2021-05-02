@@ -9,6 +9,7 @@ class BinanceTrader:
         self.analyzer = analyser
         self.trade_executor: TradeExecutor = trade_executor
         self.net_shares = 0
+        self.holds_instrument = False
 
     def consume(self, event: KLineEntity):
         opportunity = self.__analyze(event)
@@ -18,14 +19,16 @@ class BinanceTrader:
             return None
 
         result = {}
-        if opportunity.opp_type is OpportunityType.BUY:
-            result = self.trade_executor.buy(1)
-            self.net_shares = self.net_shares + 1
-        elif opportunity.opp_type is OpportunityType.SELL:
-            if self.net_shares > 0:
-                result = self.trade_executor.sell(1)
-                self.net_shares = self.net_shares - 1
+        if opportunity.opp_type is OpportunityType.BUY and not self.holds_instrument:
+            result = self.trade_executor.buy(event.close)
+            self.holds_instrument = True
+        elif opportunity.opp_type is OpportunityType.SELL and self.holds_instrument:
+            result = self.trade_executor.sell(event.close)
+            self.holds_instrument = False
+
+        print("executed trade successfully")
         print("returning result: {}".format(result))
+        print("current stock count: {}".format(self.net_shares))
         return result
 
     def __analyze(self, event) -> TradeOpportunity:

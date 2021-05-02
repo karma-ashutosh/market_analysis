@@ -72,9 +72,9 @@ class FinTAAnalyzer(DataAnalyzer):
 class BinanceAnalyzer:
     def __init__(self):
         self.events = []
-        self.larger_window = 3
+        self.larger_window = 5
         self.small_window = 1
-        self.window_length = self.larger_window * 2  # how much older data to keep to calculate moving avg
+        self.window_length = self.larger_window + 2  # how much older data to keep to calculate moving avg
         self.df_cols = ['epoch_seconds', 'open', 'high', 'low', 'close', 'volume']
         self.cur_df: DataFrame = DataFrame([], columns=self.df_cols)
         self.analyzer: DataAnalyzer = FinTAAnalyzer()
@@ -96,6 +96,8 @@ class BinanceAnalyzer:
             small, large = moving_avgs[self.small_window].tolist(), moving_avgs[self.larger_window].tolist()
             stats = Stats(small, large)
             opportunity_type = stats.opportunity_type()
+
+            print("generated opportunity of type: {} at event: {}".format(opportunity_type.name, kline.raw_json()))
             opportunity = TradeOpportunity(opportunity_type, kline, stats)
 
         return opportunity
