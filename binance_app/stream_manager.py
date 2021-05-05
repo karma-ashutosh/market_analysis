@@ -3,7 +3,7 @@ from binance_trader import BinanceTrader
 from general_util import setup_logger
 import json
 
-logger = setup_logger('binance_logger', './app.log', msg_only=True)
+logger = setup_logger('binance_logger', '../logs/app.log', msg_only=True)
 
 
 class StreamManager:
