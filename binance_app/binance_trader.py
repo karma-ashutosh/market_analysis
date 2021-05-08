@@ -1,7 +1,6 @@
-from kline_object import KLineEntity
-from binance_analyzer import BinanceAnalyzer
+from market_entity import MarketTickEntity
+from opportunity_spotter import BinanceAnalyzer, Opportunity, IndicatorDirection, IndicatorIntensity
 from binance_provider import TradeExecutor
-from binance_analyzer import TradeOpportunity, OpportunityType
 
 
 class BinanceTrader:
@@ -10,20 +9,21 @@ class BinanceTrader:
         self.trade_executor: TradeExecutor = trade_executor
         self.holds_instrument = False
 
-    def consume(self, event: KLineEntity):
+    def consume(self, event: MarketTickEntity):
         opportunity = self.__analyze(event)
 
-        if opportunity.opp_type is OpportunityType.SKIP:
+        if opportunity.direction is IndicatorDirection.NEGATIVE_SUSTAINED \
+                or opportunity.direction is IndicatorDirection.POSITIVE_SUSTAINED:
             print("No opportunity made")
             return None
 
         result = {}
         trade_executed = False
-        if opportunity.opp_type is OpportunityType.BUY and not self.holds_instrument:
+        if opportunity.direction is IndicatorDirection.POSITIVE and not self.holds_instrument:
             result = self.trade_executor.buy(event.close)
             self.holds_instrument = True
             trade_executed = True
-        elif opportunity.opp_type is OpportunityType.SELL and self.holds_instrument:
+        if opportunity.direction is IndicatorDirection.NEGATIVE and self.holds_instrument:
             result = self.trade_executor.sell(event.close)
             self.holds_instrument = False
             trade_executed = True
@@ -32,7 +32,7 @@ class BinanceTrader:
         print("returning result: {}".format(result))
         return result
 
-    def __analyze(self, event) -> TradeOpportunity:
+    def __analyze(self, event) -> Opportunity:
         return self.analyzer.find_opportunity(event)
 
     def __should_sell(self) -> bool:

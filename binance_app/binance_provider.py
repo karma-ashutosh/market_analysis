@@ -3,6 +3,7 @@ from binance.exceptions import BinanceAPIException
 from binance.websockets import BinanceSocketManager
 from requests.models import PreparedRequest
 from constants import BINANCE
+from util_general import app_logger
 
 
 def format_prepped_request(prepped: PreparedRequest):
@@ -35,30 +36,38 @@ class TradeExecutor:
         self.symbol = symbol
         self.min_usdt_to_spend = 15
 
-    def handle_api_exception(self, e: BinanceAPIException):
+    @staticmethod
+    def handle_api_exception(e: BinanceAPIException):
         parsed = ParsedBinanceAPIException(e)
-        print("status: \t{}\nbinance_code: \t{}\nerror_message: \t{}\nrequest: \t{}\nresponse: \t{}\n"
-              .format(parsed.status_code, parsed.binance_code, parsed.error_message, parsed.request, parsed.response.text))
-        print("request: {}".format(format_prepped_request(parsed.request)))
+        app_logger.error("status: \t{}\nbinance_code: \t{}\nerror_message: \t{}\nrequest: \t{}\nresponse: \t{}\n"
+                         .format(parsed.status_code, parsed.binance_code, parsed.error_message, parsed.request,
+                                 parsed.response.text))
+        app_logger.error("request: {}".format(format_prepped_request(parsed.request)))
         return parsed
 
     def buy(self, cur_price):
-        try:
-            quantity = int(self.min_usdt_to_spend / cur_price) + 1
-            print("{}\t buying {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
-            return self.client.order_market_buy(symbol=self.symbol,
-                                                # side=Client.SIDE_BUY,
-                                                type=Client.ORDER_TYPE_MARKET,
-                                                quantity=quantity,
-                                                newOrderRespType=Client.ORDER_RESP_TYPE_FULL
-                                                )
-        except BinanceAPIException as e:
-            return self.handle_api_exception(e)
+        holding = self.__tradable_held_quantity()
+        total_worth = holding * cur_price
+        if int(total_worth) > self.min_usdt_to_spend:
+            app_logger.info("Already have {} units in account at total worth {}. Skipping purchase order. "
+                            .format(holding, total_worth))
+        else:
+            try:
+                quantity = int(self.min_usdt_to_spend / cur_price) + 1
+                app_logger.info("{}\t buying {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
+                return self.client.order_market_buy(symbol=self.symbol,
+                                                    # side=Client.SIDE_BUY,
+                                                    type=Client.ORDER_TYPE_MARKET,
+                                                    quantity=quantity,
+                                                    newOrderRespType=Client.ORDER_RESP_TYPE_FULL
+                                                    )
+            except BinanceAPIException as e:
+                return self.handle_api_exception(e)
 
     def sell(self, cur_price):
         try:
             quantity = self.__tradable_held_quantity()
-            print("{}\t selling {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
+            app_logger.info("{}\t selling {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
             return self.client.order_market_sell(symbol=self.symbol,
                                                  # side=Client.SIDE_SELL,
                                                  type=Client.ORDER_TYPE_MARKET,
