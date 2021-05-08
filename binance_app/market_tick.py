@@ -20,6 +20,29 @@ class MarketTickEntity:
         return self.event
 
     @staticmethod
+    def map_file_row(j_elem, symbol):
+        try:
+            result = MarketTickEntity()
+
+            result.raw_event = j_elem
+            result.symbol = symbol
+
+            # result.trade_count = j_elem[8]
+            result.window_end_epoch_seconds = int(j_elem[6])
+            result.window_start_epoch_seconds = int(j_elem[0])
+
+            result.volume = float(j_elem[5])
+            result.close = float(j_elem[4])
+            result.low = float(j_elem[3])
+            result.high = float(j_elem[2])
+            result.open = float(j_elem[1])
+
+            return result
+        except Exception as e:
+            print("Error while prcessing file: {}".format(j_elem))
+            raise e
+
+    @staticmethod
     def map_from_binance_kline(j_elem: dict):
         result = MarketTickEntity()
 
@@ -84,4 +107,3 @@ class MarketTickEntity:
     @staticmethod
     def map_from_kite_event(j_elem: dict):
         pass
-

@@ -1,8 +1,8 @@
 from pandas import DataFrame
 
 from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity, PositionStrategy
-from opportunity_finder import OpportunityFinder, MovingAvgOpportunityFinder, MACDOpportunityFinder
-from market_entity import MarketTickEntity
+from technical_opportunity_finder import OpportunityFinder, MovingAvgOpportunityFinder, MACDOpportunityFinder
+from market_tick import MarketTickEntity
 from util_general import app_logger
 
 
@@ -29,7 +29,7 @@ class MovingDF:
         return DataFrame(values, columns=self._df_cols)
 
 
-class BinanceAnalyzer:
+class MarketTickConsolidatedOpportunityFinder:
     def __init__(self, entry_strategy: PositionStrategy, exit_strategy: PositionStrategy, min_sample_window):
         self.events = []
         self.window_length = min_sample_window

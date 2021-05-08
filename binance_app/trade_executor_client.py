@@ -1,7 +1,10 @@
+import abc
+import json
+
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
-from binance.websockets import BinanceSocketManager
 from requests.models import PreparedRequest
+
 from constants import BINANCE
 from util_general import app_logger
 
@@ -31,7 +34,21 @@ class ParsedBinanceAPIException:
 
 
 class TradeExecutor:
+    def __init__(self, symbol):
+        self.symbol = symbol
+
+    @abc.abstractmethod
+    def buy(self, cur_price):
+        pass
+
+    @abc.abstractmethod
+    def sell(self, cur_price):
+        pass
+
+
+class BinanceTradeExecutor(TradeExecutor):
     def __init__(self, client: Client, symbol):
+        super().__init__(symbol)
         self.client = client
         self.symbol = symbol
         self.min_usdt_to_spend = 15
@@ -84,20 +101,51 @@ class TradeExecutor:
         return int(float(coin_details['free']))
 
 
-class Factory:
-    # https://github.com/binance/binance-public-data/
-    def __init__(self):
-        self.client = Client(BINANCE.API_KEY, BINANCE.SECRET_KEU)
+class AcademicTradeExecutor(TradeExecutor):
+    class Trade:
+        SYMBOL = "symbol"
+        BUY = "buy_price"
+        SELL = "sell_price"
+        PNL = "profit_loss"
 
-    def open_kline_connection(self, processor=lambda msg: print(msg), symbol=BINANCE.SYMBOL):
-        bm = BinanceSocketManager(self.client)
-        bm.start_kline_socket(symbol, processor, interval=Client.KLINE_INTERVAL_1MINUTE)
-        bm.start()
+        def __init__(self, symbol, buy_price):
+            self.symbol = symbol
+            self.buy_price = buy_price
+            self.sell_price = None
+            self.profit_or_loss = None
 
-    def trade_executor(self, symbol) -> TradeExecutor:
-        return TradeExecutor(self.client, symbol)
+        def sell_at(self, sell_price):
+            self.sell_price = sell_price
+            self.profit_or_loss = self.sell_price - self.buy_price
 
+        @property
+        def to_json(self):
+            result = {
+                AcademicTradeExecutor.Trade.SYMBOL: self.symbol,
+                AcademicTradeExecutor.Trade.BUY: self.buy_price,
+                AcademicTradeExecutor.Trade.SELL: self.sell_price,
+                AcademicTradeExecutor.Trade.PNL: self.profit_or_loss
+            }
+            return result
 
-if __name__ == '__main__':
-    provider = Factory()
-    provider.trade_executor(BINANCE.SYMBOL).sell(.38)
+        def __str__(self):
+            result = self.to_json
+            return json.dumps(result, indent=1)
+
+    def __init__(self, symbol):
+        super().__init__(symbol)
+        self.__trades = []
+        self.__cur_trade: AcademicTradeExecutor.Trade = None
+
+    def buy(self, cur_price):
+        self.__cur_trade = AcademicTradeExecutor.Trade(self.symbol, cur_price)
+        app_logger.info("Buying {} at price {}".format(self.symbol, cur_price))
+
+    def sell(self, cur_price):
+        self.__cur_trade.sell_at(cur_price)
+        self.__trades.append(self.__cur_trade)
+        self.__cur_trade = None
+        app_logger.info("Selling {} at price {}".format(self.symbol, cur_price))
+
+    def get_all_trades(self):
+        return [trade.to_json() for trade in self.__trades]

@@ -1,5 +1,5 @@
 from enum import Enum
-from market_entity import MarketTickEntity
+from market_tick import MarketTickEntity
 
 
 class IndicatorDirection(Enum):

@@ -8,8 +8,10 @@ class BINANCE:
     # Tanmay personal key
     API_KEY = 'fAMfUGJlmezDeQi6EHl86EN3Rdo096kaR4UHUZZd1ilYzXmRQVVSQgvxVdRW31Wj'
     SECRET_KEU = 'AeXANTpERRTR5Yz26n0hiQ9hVxUI8J1QrwUUexuesekYRKFKZQwhb3mjCpbSJlcx'
-    DATA_FILE_READ_BASE_PATH = "/data/binance/"
-    DATA_FILE_WRITE_BASE_PATH = "/data/binance/"
+
     COIN = "DOGE"
     CURRENCY = "USDT"
     SYMBOL = COIN + CURRENCY
+
+    DATA_FILE_READ_PATH = "/data/binance/" + SYMBOL + ".json"
+    DATA_FILE_WRITE_PATH = "/data/binance/" + SYMBOL + ".json"
