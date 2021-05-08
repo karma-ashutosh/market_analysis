@@ -1,7 +1,7 @@
 from pandas import DataFrame
 
-from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity
-from opportunity_finder import MovingAvgOpportunityFinder, MACDOpportunityFinder
+from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity, PositionStrategy
+from opportunity_finder import OpportunityFinder, MovingAvgOpportunityFinder, MACDOpportunityFinder
 from market_entity import MarketTickEntity
 from util_general import app_logger
 
@@ -30,10 +30,12 @@ class MovingDF:
 
 
 class BinanceAnalyzer:
-    def __init__(self, min_sample_window=30):
+    def __init__(self, entry_strategy: PositionStrategy, exit_strategy: PositionStrategy, min_sample_window):
         self.events = []
         self.window_length = min_sample_window
         self.moving_df = MovingDF(self.window_length)
+        self.entry_strategy = entry_strategy
+        self.exit_strategy = exit_strategy
 
     def find_opportunity(self, tick: MarketTickEntity) -> Opportunity:
         cur_df = self.moving_df.generate_snapshot(tick)
@@ -41,9 +43,28 @@ class BinanceAnalyzer:
         cur_row_count = cur_df.shape[0]
         if cur_row_count < self.window_length:
             app_logger.info("current row count is {} and min limit is {}".format(cur_row_count, self.window_length))
-            opportunity = Opportunity(tick, IndicatorDirection.POSITIVE_SUSTAINED, IndicatorIntensity.ZERO)
+            return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
         else:
-            # opportunity = MovingAvgOpportunityFinder(tick, cur_df).cur_opportunity()
-            opportunity = MACDOpportunityFinder(tick, cur_df).cur_opportunity()
+            entry_opportunity = self.resolve_finder(self.entry_strategy, tick, cur_df).cur_opportunity()
+            exit_opportunity = self.resolve_finder(self.exit_strategy, tick, cur_df).cur_opportunity()
 
-        return opportunity
+            entry_positive = entry_opportunity.direction == IndicatorDirection.POSITIVE
+            exit_negative = exit_opportunity.direction == IndicatorDirection.NEGATIVE
+
+            if entry_positive and exit_negative:
+                raise Exception("Positive and Negative both signals raised. Failing application")
+            elif entry_positive:
+                return entry_opportunity
+            elif exit_negative:
+                return exit_opportunity
+            else:
+                return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
+
+    @staticmethod
+    def resolve_finder(strategy: PositionStrategy, cur_tick, cur_df) -> OpportunityFinder:
+        if strategy == PositionStrategy.MovingAvg:
+            return MovingAvgOpportunityFinder(cur_tick, cur_df)
+        if strategy == PositionStrategy.MACD:
+            return MACDOpportunityFinder(cur_tick, cur_df)
+
+        raise Exception("Strategy {} not implemented".format(strategy.name))

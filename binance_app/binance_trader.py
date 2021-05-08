@@ -10,7 +10,7 @@ class BinanceTrader:
         self.holds_instrument = False
 
     def consume(self, event: MarketTickEntity):
-        opportunity = self.__analyze(event)
+        opportunity = self.analyzer.find_opportunity(event)
 
         if opportunity.direction is IndicatorDirection.NEGATIVE_SUSTAINED \
                 or opportunity.direction is IndicatorDirection.POSITIVE_SUSTAINED:
@@ -32,8 +32,3 @@ class BinanceTrader:
         print("returning result: {}".format(result))
         return result
 
-    def __analyze(self, event) -> Opportunity:
-        return self.analyzer.find_opportunity(event)
-
-    def __should_sell(self) -> bool:
-        pass

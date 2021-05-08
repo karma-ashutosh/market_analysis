@@ -1,31 +1,12 @@
 import strategy_config
-from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity
+from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity, PositionStrategy
 from technical_value_calculator import TechCalc
-from util_general import app_logger
 
 
 class OpportunityFinder:
     def __init__(self, cur_tick, cur_df):
         self.cur_df = cur_df
         self.cur_tick = cur_tick
-
-    def cur_opportunity(self):
-        pass
-
-
-class MovingAvgOpportunityFinder(OpportunityFinder):
-
-    def __init__(self, cur_tick, cur_df):
-        super().__init__(cur_tick, cur_df)
-
-        config = strategy_config.MovingAvgParams.params
-        consts = strategy_config.MovingAvgParams
-        small_window, large_window = config[consts.SMALL], config[consts.LARGE]
-        self.cur_tick = cur_tick
-
-        self.large_window_avg = TechCalc.EMA(cur_df, large_window).tolist()
-        self.small_window_avg = TechCalc.EMA(cur_df, small_window).tolist()
-        self.diffs = [self.small_window_avg[i] - self.large_window_avg[i] for i in range(len(self.large_window_avg))]
         self.fixed_intensity = IndicatorIntensity.THREE
 
     def cur_opportunity(self) -> Opportunity:
@@ -38,29 +19,58 @@ class MovingAvgOpportunityFinder(OpportunityFinder):
         return self.fixed_intensity
 
     def __opportunity_type(self) -> IndicatorDirection:
+        raise Exception("Not Implemented")
+
+
+class DifferenceBasedOpportunityFinder(OpportunityFinder):
+    def __init__(self, cur_tick, cur_df):
+        super().__init__(cur_tick, cur_df)
+
+    def __opportunity_type(self) -> IndicatorDirection:
         result = None
-        if self.diff_prev() < 0 and self.diff_cur() >= 0:
+        if self.__diff_prev() < 0 and self.__diff_cur() >= 0:
             result = IndicatorDirection.POSITIVE
 
-        elif self.diff_prev() >= 0 and self.diff_cur() < 0:
+        elif self.__diff_prev() >= 0 and self.__diff_cur() < 0:
             result = IndicatorDirection.NEGATIVE
 
-        elif self.diff_prev() >= 0 and self.diff_cur() >= 0:
+        elif self.__diff_prev() >= 0 and self.__diff_cur() >= 0:
             result = IndicatorDirection.POSITIVE_SUSTAINED
 
-        elif self.diff_prev() < 0 and self.diff_cur() < 0:
+        elif self.__diff_prev() < 0 and self.__diff_cur() < 0:
             result = IndicatorDirection.NEGATIVE_SUSTAINED
 
         return result
 
-    def diff_prev(self):
+    def __diff_prev(self):
+        raise Exception("Not Implemented")
+
+    def __diff_cur(self):
+        raise Exception("Not Implemented")
+
+
+class MovingAvgOpportunityFinder(DifferenceBasedOpportunityFinder):
+
+    def __init__(self, cur_tick, cur_df):
+        super().__init__(cur_tick, cur_df)
+
+        config = strategy_config.MovingAvgParams.params
+        consts = strategy_config.MovingAvgParams
+        small_window, large_window = config[consts.SMALL], config[consts.LARGE]
+        self.cur_tick = cur_tick
+
+        self.large_window_avg = TechCalc.EMA(cur_df, large_window)
+        self.small_window_avg = TechCalc.EMA(cur_df, small_window)
+        self.diffs = [self.small_window_avg[i] - self.large_window_avg[i] for i in range(len(self.large_window_avg))]
+
+    def __diff_prev(self):
         return self.diffs[-2]
 
-    def diff_cur(self):
+    def __diff_cur(self):
         return self.diffs[-1]
 
 
-class MACDOpportunityFinder(OpportunityFinder):
+class MACDOpportunityFinder(DifferenceBasedOpportunityFinder):
     def __init__(self, cur_tick, cur_df):
         super().__init__(cur_tick, cur_df)
 
@@ -69,9 +79,12 @@ class MACDOpportunityFinder(OpportunityFinder):
         self.slow = config[const.SLOW]
         self.fast = config[const.FAST]
         self.signal = config[const.SIGNAL]
+        self.macd_values = TechCalc.MACD(self.cur_df, self.fast, self.slow, self.signal)
 
-    def cur_opportunity(self) -> Opportunity:
-        series = TechCalc.MACD(self.cur_df, self.fast, self.slow, self.signal)
-        app_logger.info("This is the series {}".format(series))
+    def __diff_cur(self):
+        return self.macd_values[-1]
+
+    def __diff_prev(self):
+        return self.macd_values[-2]
 
 

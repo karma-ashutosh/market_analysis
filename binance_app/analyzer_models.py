@@ -7,6 +7,7 @@ class IndicatorDirection(Enum):
     NEGATIVE = 2
     POSITIVE_SUSTAINED = 3
     NEGATIVE_SUSTAINED = 4
+    NOT_ANALYZED = 5
 
 
 class IndicatorIntensity(Enum):
@@ -22,12 +23,11 @@ class PositionStrategy(Enum):
     MovingAvg = 1
     DEMA = 2
     MACD = 3
+    NONE = 4
 
 
 class Opportunity:
-    def __init__(self, market_event: MarketTickEntity, direction: IndicatorDirection,
-                 intensity: IndicatorIntensity):
+    def __init__(self, market_event: MarketTickEntity, direction: IndicatorDirection, intensity: IndicatorIntensity):
         self.intensity = intensity
         self.direction = direction
         self.market_event = market_event
-
