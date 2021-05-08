@@ -60,7 +60,7 @@ def analyze_old_data():
                                                        min_sample_window=30)
     trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
     trader = ProfessionalTrader(trading_client, analyzer)
-    manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol))
+    manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol), min_event_delay=-1)
     factory.open_file_kline_connection(processor=lambda event: manager.consume(event), symbol=symbol)
 
     trades = trading_client.get_all_trades()
