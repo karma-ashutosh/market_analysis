@@ -60,14 +60,14 @@ def analyze_old_data():
                                                        min_sample_window=30)
     trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
     trader = ProfessionalTrader(trading_client, analyzer)
-    manager = StreamManager(trader, lambda line: MarketTickEntity.map_file_row(line, symbol))
+    manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol))
     factory.open_file_kline_connection(processor=lambda event: manager.consume(event), symbol=symbol)
 
     trades = trading_client.get_all_trades()
-    profit_loss = __profit_loss_analysis()
     with open("/tmp/trades.json", 'w') as handle:
         json.dump(trades, handle)
 
+    profit_loss = __profit_loss_analysis()
     with open("/tmp/profit_loss.json", 'w') as handle:
         json.dump(profit_loss, handle)
 

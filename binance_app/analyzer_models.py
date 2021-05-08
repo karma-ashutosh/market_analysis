@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 from market_tick import MarketTickEntity
 
@@ -31,3 +32,10 @@ class Opportunity:
         self.intensity = intensity
         self.direction = direction
         self.market_event = market_event
+
+    def __str__(self):
+        return json.dumps({
+            "intensity": self.intensity.name,
+            "direction": self.direction.name if self.direction else None,
+            "market_event": self.market_event.raw_json()
+        })

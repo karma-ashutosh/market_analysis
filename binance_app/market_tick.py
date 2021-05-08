@@ -2,7 +2,7 @@ class MarketTickEntity:
     # to see the full list of parameters in k_line, visit
     # https://github.com/binance/binance-spot-api-docs/blob/master/web-socket-streams.md#aggregate-trade-streams
     def __init__(self):
-        self.event = None
+        self.raw_event = None
         self.event_type = None
         self.event_time = None
         self.symbol = None
@@ -17,17 +17,16 @@ class MarketTickEntity:
         self.trade_count = None
 
     def raw_json(self) -> dict:
-        return self.event
+        return self.raw_event
 
     @staticmethod
     def map_file_row(j_elem, symbol):
+        result = MarketTickEntity()
         try:
-            result = MarketTickEntity()
-
             result.raw_event = j_elem
             result.symbol = symbol
 
-            # result.trade_count = j_elem[8]
+            result.trade_count = j_elem[8]
             result.window_end_epoch_seconds = int(j_elem[6])
             result.window_start_epoch_seconds = int(j_elem[0])
 
@@ -37,10 +36,10 @@ class MarketTickEntity:
             result.high = float(j_elem[2])
             result.open = float(j_elem[1])
 
-            return result
         except Exception as e:
             print("Error while prcessing file: {}".format(j_elem))
             raise e
+        return result
 
     @staticmethod
     def map_from_binance_kline(j_elem: dict):

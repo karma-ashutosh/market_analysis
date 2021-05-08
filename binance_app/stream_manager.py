@@ -7,7 +7,7 @@ logger = setup_logger('binance_logger', '../logs/binance_data.log', msg_only=Tru
 
 
 class StreamManager:
-    def __init__(self, binance_trader: ProfessionalTrader, event_transformer):
+    def __init__(self, binance_trader: ProfessionalTrader, event_transformer=lambda x: x):
         self.min_event_time = 0
         self.trader = binance_trader
         self.mapper = event_transformer
@@ -25,4 +25,3 @@ class StreamManager:
 
     def __mark_even_update(self, event: MarketTickEntity):
         self.min_event_time = event.window_end_epoch_seconds + 60
-

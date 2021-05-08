@@ -118,7 +118,6 @@ class AcademicTradeExecutor(TradeExecutor):
             self.sell_price = sell_price
             self.profit_or_loss = self.sell_price - self.buy_price
 
-        @property
         def to_json(self):
             result = {
                 AcademicTradeExecutor.Trade.SYMBOL: self.symbol,
@@ -148,4 +147,5 @@ class AcademicTradeExecutor(TradeExecutor):
         app_logger.info("Selling {} at price {}".format(self.symbol, cur_price))
 
     def get_all_trades(self):
+        print("total trade size: {}".format(len(self.__trades)))
         return [trade.to_json() for trade in self.__trades]

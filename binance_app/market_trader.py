@@ -1,7 +1,8 @@
 import abc
 
 from market_tick import MarketTickEntity
-from market_tick_analyzer import MarketTickConsolidatedOpportunityFinder, Opportunity, IndicatorDirection, IndicatorIntensity
+from market_tick_analyzer import MarketTickConsolidatedOpportunityFinder, Opportunity, IndicatorDirection, \
+    IndicatorIntensity
 from provider import TradeExecutor
 from util_general import app_logger
 
@@ -36,10 +37,12 @@ class ProfessionalTrader(MarketTrader):
             result = self.trade_executor.buy(event.close)
             self.holds_instrument = True
             trade_executed = True
-        if opportunity.direction is IndicatorDirection.NEGATIVE and self.holds_instrument:
+        elif opportunity.direction is IndicatorDirection.NEGATIVE and self.holds_instrument:
             result = self.trade_executor.sell(event.close)
             self.holds_instrument = False
             trade_executed = True
+        else:
+            result = {'opp_type': opportunity.direction.name}
 
         app_logger.info("executed trade successfully: {}\nReturning result: {}".format(trade_executed, result))
         return result
