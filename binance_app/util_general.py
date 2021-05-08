@@ -87,4 +87,4 @@ def strptime(val):
     return date.replace(microsecond=int(frag))
 
 
-app_logger = setup_logger('binance_logger', '../logs/app.log', msg_only=True)
+app_logger = setup_logger('app_logger', '../logs/app.log', msg_only=True)

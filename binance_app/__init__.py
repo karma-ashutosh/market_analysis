@@ -3,6 +3,7 @@ from binance_provider import Factory
 from binance_trader import BinanceTrader
 from stream_manager import StreamManager
 from market_entity import MarketTickEntity
+from analyzer_models import PositionStrategy
 from constants import BINANCE
 
 if __name__ == '__main__':
@@ -15,7 +16,8 @@ if __name__ == '__main__':
                                                    start_str='{} min ago UTC'.format(large_window * 2))
     binance_ticks = list(map(lambda k_line: MarketTickEntity.map_historical_k_line(k_line, symbol), historical_data))
 
-    analyzer = BinanceAnalyzer(min_sample_window=30)
+    analyzer = BinanceAnalyzer(entry_strategy=PositionStrategy.MovingAvg, exit_strategy=PositionStrategy.MACD,
+                               min_sample_window=30)
     for tick in binance_ticks:
         analyzer.find_opportunity(tick)
 

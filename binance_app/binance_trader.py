@@ -1,6 +1,7 @@
 from market_entity import MarketTickEntity
 from opportunity_spotter import BinanceAnalyzer, Opportunity, IndicatorDirection, IndicatorIntensity
 from binance_provider import TradeExecutor
+from util_general import app_logger
 
 
 class BinanceTrader:
@@ -13,8 +14,9 @@ class BinanceTrader:
         opportunity = self.analyzer.find_opportunity(event)
 
         if opportunity.direction is IndicatorDirection.NEGATIVE_SUSTAINED \
-                or opportunity.direction is IndicatorDirection.POSITIVE_SUSTAINED:
-            print("No opportunity made")
+                or opportunity.direction is IndicatorDirection.POSITIVE_SUSTAINED \
+                or opportunity.direction is IndicatorDirection.NOT_ANALYZED:
+            app_logger.info("No opportunity made for event at time: {}".format(event.event_time))
             return None
 
         result = {}
@@ -28,7 +30,5 @@ class BinanceTrader:
             self.holds_instrument = False
             trade_executed = True
 
-        print("executed trade successfully: {}".format(trade_executed))
-        print("returning result: {}".format(result))
+        app_logger.info("executed trade successfully: {}\nReturning result: {}".format(trade_executed, result))
         return result
-

@@ -1,3 +1,5 @@
+import abc
+
 import strategy_config
 from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity, PositionStrategy
 from technical_value_calculator import TechCalc
@@ -18,8 +20,9 @@ class OpportunityFinder:
     def __opportunity_intensity(self):
         return self.fixed_intensity
 
+    @abc.abstractmethod
     def __opportunity_type(self) -> IndicatorDirection:
-        raise Exception("Not Implemented")
+        pass
 
 
 class DifferenceBasedOpportunityFinder(OpportunityFinder):
