@@ -45,11 +45,11 @@ def analyze_old_data():
                 loss_making_trades = loss_making_trades + 1
         result = {
             "symbol": symbol,
-            "net_profit": int(net_profit),
+            "net_profit": net_profit,
             "profitable_trades": profitable_trades,
-            "only_profit": int(only_profit),
+            "only_profit": only_profit,
             "loss_making_trades": loss_making_trades,
-            "only_loss": int(only_loss)
+            "only_loss": only_loss
         }
         return result
 
@@ -65,11 +65,11 @@ def analyze_old_data():
 
     trades = trading_client.get_all_trades()
     with open("/tmp/trades.json", 'w') as handle:
-        json.dump(trades, handle)
+        json.dump(trades, handle, indent=1)
 
     profit_loss = __profit_loss_analysis()
     with open("/tmp/profit_loss.json", 'w') as handle:
-        json.dump(profit_loss, handle)
+        json.dump(profit_loss, handle, indent=1)
 
 
 if __name__ == '__main__':

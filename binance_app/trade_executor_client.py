@@ -107,23 +107,41 @@ class AcademicTradeExecutor(TradeExecutor):
         BUY = "buy_price"
         SELL = "sell_price"
         PNL = "profit_loss"
+        TOTAL_STOCKS = "total_stocks"
 
         def __init__(self, symbol, buy_price):
             self.symbol = symbol
+            self.trading_fee_percentage = 0.1
+            self.total_amount = 10
+            self.effective_amount = self.__amount_left_after_fee(self.total_amount)
+
             self.buy_price = buy_price
+
+            self.total_stocks = self.effective_amount / buy_price
+
             self.sell_price = None
+
             self.profit_or_loss = None
+            self.profit_or_loss_with_fee = None
+
+        def __amount_left_after_fee(self, amount):
+            effective_amount = amount / (self.trading_fee_percentage / 100 + 1)
+            # ((100 + trading_fee_percentage) / 100) * effective_amount = amount
+            return effective_amount
 
         def sell_at(self, sell_price):
             self.sell_price = sell_price
-            self.profit_or_loss = self.sell_price - self.buy_price
+            amount_returned = self.sell_price * self.total_stocks
+            after_fee = self.__amount_left_after_fee(amount_returned)
+            self.profit_or_loss = after_fee - self.total_amount
 
         def to_json(self):
             result = {
                 AcademicTradeExecutor.Trade.SYMBOL: self.symbol,
                 AcademicTradeExecutor.Trade.BUY: self.buy_price,
                 AcademicTradeExecutor.Trade.SELL: self.sell_price,
-                AcademicTradeExecutor.Trade.PNL: self.profit_or_loss
+                AcademicTradeExecutor.Trade.PNL: self.profit_or_loss,
+                AcademicTradeExecutor.Trade.TOTAL_STOCKS: self.total_stocks
             }
             return result
 
