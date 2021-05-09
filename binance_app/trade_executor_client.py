@@ -1,6 +1,7 @@
 import abc
 import json
 
+from market_tick import MarketTickEntity
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 from requests.models import PreparedRequest
@@ -38,11 +39,11 @@ class TradeExecutor:
         self.symbol = symbol
 
     @abc.abstractmethod
-    def buy(self, cur_price):
+    def buy(self, tick: MarketTickEntity):
         pass
 
     @abc.abstractmethod
-    def sell(self, cur_price):
+    def sell(self, tick: MarketTickEntity):
         pass
 
 
@@ -62,7 +63,8 @@ class BinanceTradeExecutor(TradeExecutor):
         app_logger.error("request: {}".format(format_prepped_request(parsed.request)))
         return parsed
 
-    def buy(self, cur_price):
+    def buy(self, tick: MarketTickEntity):
+        cur_price = tick.close
         holding = self.__tradable_held_quantity()
         total_worth = holding * cur_price
         if int(total_worth) > self.min_usdt_to_spend:
@@ -81,7 +83,8 @@ class BinanceTradeExecutor(TradeExecutor):
             except BinanceAPIException as e:
                 return self.handle_api_exception(e)
 
-    def sell(self, cur_price):
+    def sell(self, tick: MarketTickEntity):
+        cur_price = tick.close
         try:
             quantity = self.__tradable_held_quantity()
             app_logger.info("{}\t selling {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
@@ -108,18 +111,22 @@ class AcademicTradeExecutor(TradeExecutor):
         SELL = "sell_price"
         PNL = "profit_loss"
         TOTAL_STOCKS = "total_stocks"
+        BUY_TIME = "buy_time"
+        SELL_TIME = "sell_time"
 
-        def __init__(self, symbol, buy_price):
+        def __init__(self, symbol, buy_tick: MarketTickEntity):
             self.symbol = symbol
             self.trading_fee_percentage = 0.1
             self.total_amount = 10
             self.effective_amount = self.__amount_left_after_fee(self.total_amount)
 
-            self.buy_price = buy_price
+            self.buy_price = buy_tick.close
+            self.buy_time = buy_tick.window_end_epoch_seconds
 
-            self.total_stocks = self.effective_amount / buy_price
+            self.total_stocks = self.effective_amount / self.buy_price
 
             self.sell_price = None
+            self.sell_time = None
 
             self.profit_or_loss = None
             self.profit_or_loss_with_fee = None
@@ -129,8 +136,9 @@ class AcademicTradeExecutor(TradeExecutor):
             # ((100 + trading_fee_percentage) / 100) * effective_amount = amount
             return effective_amount
 
-        def sell_at(self, sell_price):
-            self.sell_price = sell_price
+        def sell_at(self, tick: MarketTickEntity):
+            self.sell_price = tick.close
+            self.sell_time = tick.window_end_epoch_seconds
             amount_returned = self.sell_price * self.total_stocks
             after_fee = self.__amount_left_after_fee(amount_returned)
             self.profit_or_loss = after_fee - self.total_amount
@@ -141,7 +149,9 @@ class AcademicTradeExecutor(TradeExecutor):
                 AcademicTradeExecutor.Trade.BUY: self.buy_price,
                 AcademicTradeExecutor.Trade.SELL: self.sell_price,
                 AcademicTradeExecutor.Trade.PNL: self.profit_or_loss,
-                AcademicTradeExecutor.Trade.TOTAL_STOCKS: self.total_stocks
+                AcademicTradeExecutor.Trade.TOTAL_STOCKS: self.total_stocks,
+                AcademicTradeExecutor.Trade.BUY_TIME: self.buy_time,
+                AcademicTradeExecutor.Trade.SELL_TIME: self.sell_time
             }
             return result
 
@@ -154,15 +164,15 @@ class AcademicTradeExecutor(TradeExecutor):
         self.__trades = []
         self.__cur_trade: AcademicTradeExecutor.Trade = None
 
-    def buy(self, cur_price):
-        self.__cur_trade = AcademicTradeExecutor.Trade(self.symbol, cur_price)
-        app_logger.info("Buying {} at price {}".format(self.symbol, cur_price))
+    def buy(self, tick: MarketTickEntity):
+        self.__cur_trade = AcademicTradeExecutor.Trade(self.symbol, tick)
+        app_logger.info("Buying {} at price {}".format(self.symbol, tick.close))
 
-    def sell(self, cur_price):
-        self.__cur_trade.sell_at(cur_price)
+    def sell(self, tick: MarketTickEntity):
+        self.__cur_trade.sell_at(tick)
         self.__trades.append(self.__cur_trade)
         self.__cur_trade = None
-        app_logger.info("Selling {} at price {}".format(self.symbol, cur_price))
+        app_logger.info("Selling {} at price {}".format(self.symbol, tick.close))
 
     def get_all_trades(self):
         print("total trade size: {}".format(len(self.__trades)))
