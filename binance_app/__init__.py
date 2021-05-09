@@ -58,10 +58,10 @@ def analyze_old_data():
     symbol = BINANCE.SYMBOL
     factory = Factory()
 
-    trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
 
     result = []
     for (fast, slow, signal) in [(12, 26, 9), (5, 13, 1), (7, 21, 14)]:
+        trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
         params = {
             MACDParams.FAST: fast,
             MACDParams.SLOW: slow,
@@ -69,7 +69,8 @@ def analyze_old_data():
         }
         analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.MACD,
                                                            exit_strategy=PositionStrategy.MACD,
-                                                           min_sample_window=30, entry_params=params, exit_params=params)
+                                                           min_sample_window=30, entry_params=params,
+                                                           exit_params=params)
         trader = ProfessionalTrader(trading_client, analyzer)
         manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol), min_event_delay=-1)
 
