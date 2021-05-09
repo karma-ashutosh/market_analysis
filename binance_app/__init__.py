@@ -8,6 +8,7 @@ from stream_manager import StreamManager
 from market_tick import MarketTickEntity
 from analyzer_models import PositionStrategy
 from constants import BINANCE
+from strategy_config import MACDParams, MovingAvgParams
 
 
 def live_trade_binance():
@@ -20,7 +21,9 @@ def live_trade_binance():
     binance_ticks = list(map(lambda k_line: MarketTickEntity.map_historical_k_line(k_line, symbol), historical_data))
     analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.MovingAvg,
                                                        exit_strategy=PositionStrategy.MACD,
-                                                       min_sample_window=30)
+                                                       min_sample_window=30,
+                                                       entry_params=MovingAvgParams.params,
+                                                       exit_params=MACDParams.params)
     for tick in binance_ticks:
         analyzer.find_opportunity(tick)
     trader = ProfessionalTrader(factory.binance_trade_executor(symbol), analyzer)
@@ -29,7 +32,6 @@ def live_trade_binance():
 
 
 def analyze_old_data():
-
     def __profit_loss_analysis():
         net_profit = 0
         profitable_trades, loss_making_trades = 0, 0
@@ -55,21 +57,35 @@ def analyze_old_data():
 
     symbol = BINANCE.SYMBOL
     factory = Factory()
-    analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.MovingAvg,
-                                                       exit_strategy=PositionStrategy.MACD,
-                                                       min_sample_window=30)
+
     trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
-    trader = ProfessionalTrader(trading_client, analyzer)
-    manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol), min_event_delay=-1)
-    factory.open_file_kline_connection(processor=lambda event: manager.consume(event), symbol=symbol)
 
-    trades = trading_client.get_all_trades()
-    with open("/tmp/trades.json", 'w') as handle:
-        json.dump(trades, handle, indent=1)
+    result = []
+    for (fast, slow, signal) in [(12, 26, 9), (5, 13, 1), (7, 21, 14)]:
+        params = {
+            MACDParams.FAST: fast,
+            MACDParams.SLOW: slow,
+            MACDParams.SIGNAL: signal
+        }
+        analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.MACD,
+                                                           exit_strategy=PositionStrategy.MACD,
+                                                           min_sample_window=30, entry_params=params, exit_params=params)
+        trader = ProfessionalTrader(trading_client, analyzer)
+        manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol), min_event_delay=-1)
 
-    profit_loss = __profit_loss_analysis()
-    with open("/tmp/profit_loss.json", 'w') as handle:
-        json.dump(profit_loss, handle, indent=1)
+        factory.open_file_kline_connection(processor=lambda event: manager.consume(event), symbol=symbol)
+        trades = trading_client.get_all_trades()
+        # with open("/tmp/trades.json", 'w') as handle:
+        #     json.dump(trades, handle, indent=1)
+
+        profit_loss = __profit_loss_analysis()
+        profit_loss[MACDParams.FAST] = fast
+        profit_loss[MACDParams.SLOW] = slow
+        profit_loss[MACDParams.SIGNAL] = signal
+        result.append(profit_loss)
+
+    with open("/tmp/profit_loss_multi.json", 'w') as handle:
+        json.dump(result, handle, indent=1)
 
 
 if __name__ == '__main__':

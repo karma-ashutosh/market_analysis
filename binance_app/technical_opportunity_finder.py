@@ -1,7 +1,7 @@
 import abc
 
-import strategy_config
-from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity, PositionStrategy
+from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity
+from strategy_config import MovingAvgParams, MACDParams
 from technical_value_calculator import TechCalc
 
 
@@ -56,11 +56,10 @@ class DifferenceBasedOpportunityFinder(OpportunityFinder):
 
 class MovingAvgOpportunityFinder(DifferenceBasedOpportunityFinder):
 
-    def __init__(self, cur_tick, cur_df):
+    def __init__(self, cur_tick, cur_df, config=MovingAvgParams.params):
         super().__init__(cur_tick, cur_df)
 
-        config = strategy_config.MovingAvgParams.params
-        consts = strategy_config.MovingAvgParams
+        consts = MovingAvgParams
         small_window, large_window = config[consts.SMALL], config[consts.LARGE]
         self.cur_tick = cur_tick
 
@@ -76,11 +75,10 @@ class MovingAvgOpportunityFinder(DifferenceBasedOpportunityFinder):
 
 
 class MACDOpportunityFinder(DifferenceBasedOpportunityFinder):
-    def __init__(self, cur_tick, cur_df):
+    def __init__(self, cur_tick, cur_df, config=MACDParams.params):
         super().__init__(cur_tick, cur_df)
 
-        const = strategy_config.MACDParams
-        config = strategy_config.MACDParams.params
+        const = MACDParams
         self.slow = config[const.SLOW]
         self.fast = config[const.FAST]
         self.signal = config[const.SIGNAL]

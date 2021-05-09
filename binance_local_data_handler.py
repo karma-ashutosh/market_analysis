@@ -60,5 +60,5 @@ class LocalDataHandler:
 
 
 if __name__ == '__main__':
-    data_handler = LocalDataHandler(BINANCE.SYMBOL)
-    data_handler.download_historical_data(7)
+    data_handler = LocalDataHandler("DOGEUSDT")
+    data_handler.download_historical_data(2)

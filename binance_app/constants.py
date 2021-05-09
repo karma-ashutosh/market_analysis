@@ -13,5 +13,5 @@ class BINANCE:
     CURRENCY = "USDT"
     SYMBOL = COIN + CURRENCY
 
-    DATA_FILE_READ_PATH = "/data/binance/"
-    DATA_FILE_WRITE_PATH = "/data/binance/"
+    DATA_FILE_READ_BASE_PATH = "/data/binance/"
+    DATA_FILE_WRITE_BASE_PATH = "/data/binance/"

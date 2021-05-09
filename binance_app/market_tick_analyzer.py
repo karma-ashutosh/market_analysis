@@ -30,12 +30,16 @@ class MovingDF:
 
 
 class MarketTickConsolidatedOpportunityFinder:
-    def __init__(self, entry_strategy: PositionStrategy, exit_strategy: PositionStrategy, min_sample_window):
+    def __init__(self, entry_strategy: PositionStrategy, exit_strategy: PositionStrategy, min_sample_window,
+                 entry_params: dict, exit_params: dict):
         self.events = []
         self.window_length = min_sample_window
         self.moving_df = MovingDF(self.window_length)
         self.entry_strategy = entry_strategy
         self.exit_strategy = exit_strategy
+
+        self.entry_params = entry_params
+        self.exit_params = exit_params
 
     def find_opportunity(self, tick: MarketTickEntity) -> Opportunity:
         cur_df = self.moving_df.generate_snapshot(tick)
@@ -45,8 +49,8 @@ class MarketTickConsolidatedOpportunityFinder:
             app_logger.info("current row count is {} and min limit is {}".format(cur_row_count, self.window_length))
             return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
         else:
-            entry_opportunity = self.resolve_finder(self.entry_strategy, tick, cur_df).cur_opportunity()
-            exit_opportunity = self.resolve_finder(self.exit_strategy, tick, cur_df).cur_opportunity()
+            entry_opportunity = self.resolve_finder(self.entry_strategy, tick, cur_df, self.entry_params).cur_opportunity()
+            exit_opportunity = self.resolve_finder(self.exit_strategy, tick, cur_df, self.exit_params).cur_opportunity()
 
             entry_positive = entry_opportunity.direction == IndicatorDirection.POSITIVE
             exit_negative = exit_opportunity.direction == IndicatorDirection.NEGATIVE
@@ -61,10 +65,10 @@ class MarketTickConsolidatedOpportunityFinder:
                 return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
 
     @staticmethod
-    def resolve_finder(strategy: PositionStrategy, cur_tick, cur_df) -> OpportunityFinder:
+    def resolve_finder(strategy: PositionStrategy, cur_tick, cur_df, config) -> OpportunityFinder:
         if strategy == PositionStrategy.MovingAvg:
-            return MovingAvgOpportunityFinder(cur_tick, cur_df)
+            return MovingAvgOpportunityFinder(cur_tick, cur_df, config)
         if strategy == PositionStrategy.MACD:
-            return MACDOpportunityFinder(cur_tick, cur_df)
+            return MACDOpportunityFinder(cur_tick, cur_df, config)
 
         raise Exception("Strategy {} not implemented".format(strategy.name))

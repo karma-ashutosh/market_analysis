@@ -7,6 +7,10 @@ class TechCalc:
         raise Exception("Cannot initialize this class")
 
     @staticmethod
+    def RSI(data_frame: DataFrame, window: int) -> list:
+        return TA.RSI(data_frame, period=window).to_list()
+
+    @staticmethod
     def EMA(data_frame: DataFrame, window: int) -> list:
         return TA.EMA(data_frame, window).to_list()
 
