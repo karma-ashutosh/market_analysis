@@ -1,5 +1,6 @@
 import abc
 import json
+from datetime import datetime
 
 from market_tick import MarketTickEntity
 from binance.client import Client
@@ -150,8 +151,8 @@ class AcademicTradeExecutor(TradeExecutor):
                 AcademicTradeExecutor.Trade.SELL: self.sell_price,
                 AcademicTradeExecutor.Trade.PNL: self.profit_or_loss,
                 AcademicTradeExecutor.Trade.TOTAL_STOCKS: self.total_stocks,
-                AcademicTradeExecutor.Trade.BUY_TIME: self.buy_time,
-                AcademicTradeExecutor.Trade.SELL_TIME: self.sell_time
+                AcademicTradeExecutor.Trade.BUY_TIME: datetime.fromtimestamp(self.buy_time / 1000).strftime("%m/%d/%Y, %H:%M:%S"),
+                AcademicTradeExecutor.Trade.SELL_TIME: datetime.fromtimestamp(self.sell_time / 1000).strftime("%m/%d/%Y, %H:%M:%S"),
             }
             return result
 
