@@ -125,7 +125,7 @@ class AcademicTradeExecutor(TradeExecutor):
             self.profit_or_loss_with_fee = None
 
         def __amount_left_after_fee(self, amount):
-            effective_amount = amount / (self.trading_fee_percentage / 100 + 1)
+            effective_amount = amount * (1 - self.trading_fee_percentage / 100)
             # ((100 + trading_fee_percentage) / 100) * effective_amount = amount
             return effective_amount
 
