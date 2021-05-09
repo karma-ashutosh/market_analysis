@@ -34,4 +34,4 @@ class Factory:
 
 if __name__ == '__main__':
     provider = Factory()
-    provider.binance_trade_executor(BINANCE.SYMBOL).sell(.38)
+    # provider.binance_trade_executor(BINANCE.SYMBOL).sell(.38, None)

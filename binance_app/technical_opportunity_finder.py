@@ -98,8 +98,8 @@ class MACDOpportunityFinder(DifferenceBasedOpportunityFinder):
         return {
             "macd_prev": self.macd_values[-2],
             "macd_cur": self.macd_values[-1],
-            "signal_prev": self.macd_values[-2],
-            "signal_cur": self.macd_values[-1]
+            "signal_prev": self.signal_values[-2],
+            "signal_cur": self.signal_values[-1]
         }
 
     def diff_cur(self):

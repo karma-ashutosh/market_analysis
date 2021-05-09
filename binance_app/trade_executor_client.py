@@ -64,7 +64,7 @@ class BinanceTradeExecutor(TradeExecutor):
         app_logger.error("request: {}".format(format_prepped_request(parsed.request)))
         return parsed
 
-    def buy(self, tick: MarketTickEntity):
+    def buy(self, tick: MarketTickEntity, opp: Opportunity):
         cur_price = tick.close
         holding = self.__tradable_held_quantity()
         total_worth = holding * cur_price
@@ -84,7 +84,7 @@ class BinanceTradeExecutor(TradeExecutor):
             except BinanceAPIException as e:
                 return self.handle_api_exception(e)
 
-    def sell(self, tick: MarketTickEntity):
+    def sell(self, tick: MarketTickEntity, opp: Opportunity):
         cur_price = tick.close
         try:
             quantity = self.__tradable_held_quantity()
