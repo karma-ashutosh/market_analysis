@@ -28,14 +28,17 @@ class PositionStrategy(Enum):
 
 
 class Opportunity:
-    def __init__(self, market_event: MarketTickEntity, direction: IndicatorDirection, intensity: IndicatorIntensity):
+    def __init__(self, market_event: MarketTickEntity, direction: IndicatorDirection, intensity: IndicatorIntensity,
+                 attrs=None):
         self.intensity = intensity
         self.direction = direction
         self.market_event = market_event
+        self.attrs = attrs
 
     def __str__(self):
         return json.dumps({
             "intensity": self.intensity.name,
             "direction": self.direction.name if self.direction else None,
-            "market_event": self.market_event.raw_json()
+            "market_event": self.market_event.raw_json(),
+            "attrs": self.attrs
         })

@@ -34,11 +34,11 @@ class ProfessionalTrader(MarketTrader):
         result = {}
         trade_executed = False
         if opportunity.direction is IndicatorDirection.POSITIVE and not self.holds_instrument:
-            result = self.trade_executor.buy(event)
+            result = self.trade_executor.buy(event, opportunity)
             self.holds_instrument = True
             trade_executed = True
         elif opportunity.direction is IndicatorDirection.NEGATIVE and self.holds_instrument:
-            result = self.trade_executor.sell(event)
+            result = self.trade_executor.sell(event, opportunity)
             self.holds_instrument = False
             trade_executed = True
         else:

@@ -37,6 +37,7 @@ def json_arr_to_csv(json_array, csv_path, seperator=","):
     # making exhaustive list of column names
     column_names = set()
     for j_element in json_array:
+        j_element = flatten(j_element)
         for key in j_element:
             column_names.add(key)
     column_names = list(sorted(column_names))
@@ -44,6 +45,7 @@ def json_arr_to_csv(json_array, csv_path, seperator=","):
     f = open(csv_path, 'w')
     f.write(seperator.join(column_names) + "\n")
     for j_element in json_array:
+        j_element = flatten(j_element)
         vals = [str(j_element.get(key, "null")) for key in column_names]
         line = seperator.join(vals) + "\n"
         f.write(line)

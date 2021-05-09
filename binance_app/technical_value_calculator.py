@@ -15,7 +15,6 @@ class TechCalc:
         return TA.EMA(data_frame, window).to_list()
 
     @staticmethod
-    def MACD(data_frame: DataFrame, fast, slow, signal) -> list:
+    def MACD(data_frame: DataFrame, fast, slow, signal) -> tuple:
         df = TA.MACD(data_frame, period_fast=fast, period_slow=slow, signal=signal)
-        diff = df['MACD'] - df['SIGNAL']
-        return diff.to_list()
+        return df['MACD'], df['SIGNAL']
