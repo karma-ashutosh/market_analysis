@@ -70,5 +70,5 @@ class LocalDataHandler:
 
 
 if __name__ == '__main__':
-    data_handler = LocalDataHandler("ETHUSDT")
+    data_handler = LocalDataHandler(BINANCE.SYMBOL)
     data_handler.download_historical_data(2)
