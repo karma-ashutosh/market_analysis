@@ -9,6 +9,7 @@ from market_tick import MarketTickEntity
 from analyzer_models import PositionStrategy
 from constants import BINANCE
 from strategy_config import MACDParams, MovingAvgParams
+from util_json import save_csv_and_json_output
 
 
 def live_trade_binance():
@@ -60,7 +61,7 @@ def analyze_old_data():
 
 
     result = []
-    for (fast, slow, signal) in [(12, 26, 9), (5, 13, 1), (7, 21, 14)]:
+    for (fast, slow, signal) in [(12, 26, 9)]:
         trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
         params = {
             MACDParams.FAST: fast,
@@ -76,16 +77,18 @@ def analyze_old_data():
 
         factory.open_file_kline_connection(processor=lambda event: manager.consume(event), symbol=symbol)
         trades = trading_client.get_all_trades()
-        # with open("/tmp/trades.json", 'w') as handle:
-        #     json.dump(trades, handle, indent=1)
+        with open(BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}.json".format(fast, slow, signal), 'w') as handle:
+            json.dump(trades, handle, indent=1)
 
+        save_csv_and_json_output(trades, BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}".format(fast, slow, signal))
         profit_loss = __profit_loss_analysis()
         profit_loss[MACDParams.FAST] = fast
         profit_loss[MACDParams.SLOW] = slow
         profit_loss[MACDParams.SIGNAL] = signal
         result.append(profit_loss)
 
-    with open("/tmp/profit_loss_multi.json", 'w') as handle:
+
+    with open(BINANCE.DATA_FILE_WRITE_BASE_PATH + "profit_loss_multi.json", 'w') as handle:
         json.dump(result, handle, indent=1)
 
 
