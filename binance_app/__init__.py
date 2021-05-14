@@ -115,22 +115,30 @@ def analyze_binance_old_data():
 
 
 def analyze_kite_old_data():
-    symbol = KITE.SYMBOL
-    factory = Factory()
-    event_mapper = MarketTickEntity.map_from_kite_event
-    file_connection = factory.open_file_kite_connection
-    fast, slow, signal = (12, 26, 9)
-    long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
-                                                 macd_params=(fast, slow, signal))
-    save_csv_and_json_output(all_trades,
-                             KITE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}".format(fast, slow, signal))
-    save_csv_and_json_output(all_trades,
-                             KITE.DATA_FILE_WRITE_BASE_PATH + "long_trades_{}_{}_{}".format(fast, slow, signal))
-    save_csv_and_json_output(all_trades,
-                             KITE.DATA_FILE_WRITE_BASE_PATH + "short_trades_{}_{}_{}".format(fast, slow, signal))
+    all_pnl = []
+    for symbol in KITE.SYMBOLS:
+        factory = Factory()
+        event_mapper = MarketTickEntity.map_from_kite_event
+        file_connection = factory.open_file_kite_connection
+        fast, slow, signal = (12, 26, 9)
+        long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
+                                                     macd_params=(fast, slow, signal))
+        # save_csv_and_json_output(all_trades,
+        #                          KITE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}_{}".format(symbol, fast, slow,
+        #                                                                                       signal))
+        # save_csv_and_json_output(all_trades,
+        #                          KITE.DATA_FILE_WRITE_BASE_PATH + "long_trades_{}_{}_{}_{}".format(symbol, fast, slow,
+        #                                                                                            signal))
+        # save_csv_and_json_output(all_trades,
+        #                          KITE.DATA_FILE_WRITE_BASE_PATH + "short_trades_{}_{}_{}_{}".format(symbol, fast, slow,
+        #                                                                                             signal))
+        #
+        # with open(KITE.DATA_FILE_WRITE_BASE_PATH + "profit_loss_multi_{}.json".format(symbol), 'w') as handle:
+        #     json.dump(pnl, handle, indent=1)
 
-    with open(KITE.DATA_FILE_WRITE_BASE_PATH + "profit_loss_multi.json", 'w') as handle:
-        json.dump(pnl, handle, indent=1)
+        all_pnl.extend(pnl)
+
+    save_csv_and_json_output(all_pnl, KITE.DATA_FILE_WRITE_BASE_PATH + "all_pnl_{}".format(KITE.year))
 
 
 if __name__ == '__main__':
