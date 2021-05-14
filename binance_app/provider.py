@@ -4,7 +4,7 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 from trade_executor_client import BinanceTradeExecutor, AcademicTradeExecutor, TradeExecutor
-from constants import BINANCE
+from constants import BINANCE, KITE
 
 
 class Factory:
@@ -15,6 +15,13 @@ class Factory:
     @staticmethod
     def open_file_kline_connection(processor=lambda msg: print(msg), symbol=BINANCE.SYMBOL):
         with open(BINANCE.DATA_FILE_READ_BASE_PATH + symbol + ".json") as handle:
+            events = json.load(handle)
+        for event in events:
+            processor(event)
+
+    @staticmethod
+    def open_file_kite_connection(processor=lambda msg: print(msg), symbol=BINANCE.SYMBOL):
+        with open(KITE.DATA_FILE_READ_BASE_PATH + symbol + ".json") as handle:
             events = json.load(handle)
         for event in events:
             processor(event)

@@ -1,4 +1,9 @@
 
+class KITE:
+    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/current_daily_data"
+    DATA_FILE_WRITE_BASE_PATH = "/data/kite_websocket_data/current_daily_data"
+    SYMBOL = "ADANIPORTS"
+
 
 class BINANCE:
     # Ashutosh personal key
