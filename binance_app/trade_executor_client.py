@@ -1,7 +1,6 @@
 import abc
-import json
-from datetime import datetime
-
+from model_academic_trade import LongTrade, ShortTrade
+from trade_models import TradeResult, TradeType
 from market_tick import MarketTickEntity
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
@@ -40,11 +39,19 @@ class TradeExecutor:
         self.symbol = symbol
 
     @abc.abstractmethod
-    def buy(self, tick: MarketTickEntity, opportunity: Opportunity):
+    def buy(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
         pass
 
     @abc.abstractmethod
-    def sell(self, tick: MarketTickEntity, opportunity: Opportunity):
+    def sell(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+        pass
+
+    @abc.abstractmethod
+    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+        pass
+
+    @abc.abstractmethod
+    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
         pass
 
 
@@ -64,7 +71,7 @@ class BinanceTradeExecutor(TradeExecutor):
         app_logger.error("request: {}".format(format_prepped_request(parsed.request)))
         return parsed
 
-    def buy(self, tick: MarketTickEntity, opp: Opportunity):
+    def buy(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
         cur_price = tick.close
         holding = self.__tradable_held_quantity()
         total_worth = holding * cur_price
@@ -75,28 +82,38 @@ class BinanceTradeExecutor(TradeExecutor):
             try:
                 quantity = int(self.min_usdt_to_spend / cur_price) + 1
                 app_logger.info("{}\t buying {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
-                return self.client.order_market_buy(symbol=self.symbol,
-                                                    # side=Client.SIDE_BUY,
-                                                    type=Client.ORDER_TYPE_MARKET,
-                                                    quantity=quantity,
-                                                    newOrderRespType=Client.ORDER_RESP_TYPE_FULL
-                                                    )
+                self.client.order_market_buy(symbol=self.symbol,
+                                             # side=Client.SIDE_BUY,
+                                             type=Client.ORDER_TYPE_MARKET,
+                                             quantity=quantity,
+                                             newOrderRespType=Client.ORDER_RESP_TYPE_FULL)
+                return TradeResult(TradeType.BUY, cur_price, quantity)
             except BinanceAPIException as e:
-                return self.handle_api_exception(e)
+                app_logger.error(self.handle_api_exception(e))
+                return TradeResult(TradeType.FAIL, 0, 0)
 
-    def sell(self, tick: MarketTickEntity, opp: Opportunity):
+    def sell(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+
         cur_price = tick.close
         try:
             quantity = self.__tradable_held_quantity()
             app_logger.info("{}\t selling {} quantity at cur_price: {}".format(self.symbol, quantity, cur_price))
-            return self.client.order_market_sell(symbol=self.symbol,
-                                                 # side=Client.SIDE_SELL,
-                                                 type=Client.ORDER_TYPE_MARKET,
-                                                 quantity=quantity,
-                                                 newOrderRespType=Client.ORDER_RESP_TYPE_FULL
-                                                 )
+            self.client.order_market_sell(symbol=self.symbol,
+                                          # side=Client.SIDE_SELL,
+                                          type=Client.ORDER_TYPE_MARKET,
+                                          quantity=quantity,
+                                          newOrderRespType=Client.ORDER_RESP_TYPE_FULL
+                                          )
+            return TradeResult(TradeType.SELL, cur_price, quantity)
         except BinanceAPIException as e:
-            return self.handle_api_exception(e)
+            app_logger.error(self.handle_api_exception(e))
+            return TradeResult(TradeType.FAIL, 0, 0)
+
+    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+        pass
+
+    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+        pass
 
     def __tradable_held_quantity(self):
         account = self.client.get_account()
@@ -106,82 +123,50 @@ class BinanceTradeExecutor(TradeExecutor):
 
 
 class AcademicTradeExecutor(TradeExecutor):
-    class Trade:
-        SYMBOL = "symbol"
-        BUY = "buy_price"
-        SELL = "sell_price"
-        PNL = "profit_loss"
-        TOTAL_STOCKS = "total_stocks"
-        BUY_TIME = "buy_time"
-        SELL_TIME = "sell_time"
-        BUY_ATTRS = "buy_attrs"
-        SELL_ATTRS = "sell_attrs"
-
-        def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict):
-            self.symbol = symbol
-            self.trading_fee_percentage = 0.1
-            self.total_amount = 10
-            self.effective_amount = self.__amount_left_after_fee(self.total_amount)
-
-            self.buy_price = buy_tick.close
-            self.buy_time = buy_tick.window_end_epoch_seconds
-            self.buy_attrs = attrs
-
-            self.total_stocks = self.effective_amount / self.buy_price
-
-            self.sell_price = None
-            self.sell_time = None
-            self.sell_attrs = None
-
-            self.profit_or_loss = None
-            self.profit_or_loss_with_fee = None
-
-        def __amount_left_after_fee(self, amount):
-            effective_amount = amount * (1 - self.trading_fee_percentage / 100)
-            # ((100 + trading_fee_percentage) / 100) * effective_amount = amount
-            return effective_amount
-
-        def sell_at(self, tick: MarketTickEntity, attrs: dict):
-            self.sell_attrs = attrs
-            self.sell_price = tick.close
-            self.sell_time = tick.window_end_epoch_seconds
-            amount_returned = self.sell_price * self.total_stocks
-            after_fee = self.__amount_left_after_fee(amount_returned)
-            self.profit_or_loss = after_fee - self.total_amount
-
-        def to_json(self):
-            result = {
-                AcademicTradeExecutor.Trade.SYMBOL: self.symbol,
-                AcademicTradeExecutor.Trade.BUY: self.buy_price,
-                AcademicTradeExecutor.Trade.SELL: self.sell_price,
-                AcademicTradeExecutor.Trade.PNL: self.profit_or_loss,
-                AcademicTradeExecutor.Trade.TOTAL_STOCKS: self.total_stocks,
-                AcademicTradeExecutor.Trade.BUY_TIME: datetime.fromtimestamp(self.buy_time / 1000).strftime("%m/%d/%Y, %H:%M:%S"),
-                AcademicTradeExecutor.Trade.SELL_TIME: datetime.fromtimestamp(self.sell_time / 1000).strftime("%m/%d/%Y, %H:%M:%S"),
-                AcademicTradeExecutor.Trade.BUY_ATTRS: self.buy_attrs,
-                AcademicTradeExecutor.Trade.SELL_ATTRS: self.sell_attrs,
-            }
-            return result
-
-        def __str__(self):
-            result = self.to_json
-            return json.dumps(result, indent=1)
-
     def __init__(self, symbol):
         super().__init__(symbol)
-        self.__trades = []
-        self.__cur_trade: AcademicTradeExecutor.Trade = None
+        self.__long_trades = []
+        self.__short_trades = []
+        self.__cur_long_trade: LongTrade = None
+        self.__cur_short_trade: ShortTrade = None
 
-    def buy(self, tick: MarketTickEntity, opp: Opportunity):
-        self.__cur_trade = AcademicTradeExecutor.Trade(self.symbol, tick, opp.attrs)
-        app_logger.info("Buying {} at price {}".format(self.symbol, tick.close))
+    def buy(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+        if not self.__cur_long_trade:
+            self.__cur_long_trade = LongTrade(self.symbol, tick, opp.attrs)
+            app_logger.info("Buying {} at price {}".format(self.symbol, tick.close))
+            return TradeResult(TradeType.BUY, tick.close, self.__cur_long_trade.total_stocks)
 
-    def sell(self, tick: MarketTickEntity, opp: Opportunity):
-        self.__cur_trade.sell_at(tick, opp.attrs)
-        self.__trades.append(self.__cur_trade)
-        self.__cur_trade = None
-        app_logger.info("Selling {} at price {}".format(self.symbol, tick.close))
+    def sell(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+        if self.__cur_long_trade is not None:
+            self.__cur_long_trade.sell_at(tick, opp.attrs)
+            self.__long_trades.append(self.__cur_long_trade)
+            app_logger.info("Selling {} at price {}".format(self.symbol, tick.close))
+
+            result = TradeResult(TradeType.SELL, tick.close, self.__cur_long_trade.total_stocks)
+            self.__cur_long_trade = None
+            return result
+
+    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+        if not self.__cur_short_trade:
+            self.__cur_short_trade = ShortTrade(self.symbol, tick, opportunity.attrs)
+            app_logger.info("Shorting {} at price {}".format(self.symbol, tick.close))
+            return TradeResult(TradeType.SELL, tick.close, self.__cur_short_trade.total_stocks)
+
+    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+        if self.__cur_short_trade:
+            self.__cur_short_trade.buy_at(tick, attrs=opportunity.attrs)
+            self.__short_trades.append(self.__cur_short_trade)
+
+            result = TradeResult(TradeType.BUY, tick.close, self.__cur_short_trade.total_stocks)
+            self.__cur_short_trade = None
+            return result
 
     def get_all_trades(self):
-        print("total trade size: {}".format(len(self.__trades)))
-        return [trade.to_json() for trade in self.__trades]
+        print("total trade size: {}".format(len(self.__long_trades)))
+        longs = [trade.to_json() for trade in filter(lambda trade: trade.buy_price and trade.sell_price,
+                                                     self.__long_trades)]
+        shorts = [trade.to_json() for trade in filter(lambda trade: trade.buy_price and trade.sell_price,
+                                                      self.__short_trades)]
+
+        return longs, shorts
+

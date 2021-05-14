@@ -1,8 +1,7 @@
 import abc
 
 from market_tick import MarketTickEntity
-from market_tick_analyzer import MarketTickConsolidatedOpportunityFinder, Opportunity, IndicatorDirection, \
-    IndicatorIntensity
+from market_tick_analyzer import MarketTickConsolidatedOpportunityFinder, IndicatorDirection
 from provider import TradeExecutor
 from util_general import app_logger
 
@@ -31,18 +30,19 @@ class ProfessionalTrader(MarketTrader):
             app_logger.info("No opportunity made for event at time: {}".format(event.event_time))
             return None
 
-        result = {}
         trade_executed = False
-        if opportunity.direction is IndicatorDirection.POSITIVE and not self.holds_instrument:
-            result = self.trade_executor.buy(event, opportunity)
-            self.holds_instrument = True
+        if opportunity.direction is IndicatorDirection.POSITIVE:
+            long_result = self.trade_executor.buy(event, opportunity)
+            short_result = self.trade_executor.square_short(event, opportunity)
             trade_executed = True
-        elif opportunity.direction is IndicatorDirection.NEGATIVE and self.holds_instrument:
-            result = self.trade_executor.sell(event, opportunity)
-            self.holds_instrument = False
+        elif opportunity.direction is IndicatorDirection.NEGATIVE:
+            long_result = self.trade_executor.sell(event, opportunity)
+            short_result = self.trade_executor.take_short(event, opportunity)
             trade_executed = True
         else:
-            result = {'opp_type': opportunity.direction.name}
+            long_result = {'opp_type': opportunity.direction.name}
+            short_result = {'opp_type': opportunity.direction.name}
 
-        app_logger.info("executed trade successfully: {}\nReturning result: {}".format(trade_executed, result))
-        return result
+        app_logger.info("executed trade successfully: {}\nReturning result long: {}, short: {}"
+                        .format(trade_executed, long_result, short_result))
+        return long_result, short_result

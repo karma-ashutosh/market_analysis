@@ -1,5 +1,6 @@
 import json
 
+from model_academic_trade import LongTrade
 from trade_executor_client import AcademicTradeExecutor
 from market_tick_analyzer import MarketTickConsolidatedOpportunityFinder
 from provider import Factory
@@ -33,12 +34,12 @@ def live_trade_binance():
 
 
 def analyze_old_data():
-    def __profit_loss_analysis():
+    def __profit_loss_analysis(trades):
         net_profit = 0
         profitable_trades, loss_making_trades = 0, 0
         only_profit, only_loss = 0, 0
         for trade in trades:
-            trade_profit = trade[AcademicTradeExecutor.Trade.PNL]
+            trade_profit = trade[LongTrade.PNL]
             net_profit = net_profit + trade_profit
             if trade_profit > 0:
                 only_profit = only_profit + trade_profit
@@ -59,7 +60,6 @@ def analyze_old_data():
     symbol = BINANCE.SYMBOL
     factory = Factory()
 
-
     result = []
     for (fast, slow, signal) in [(12, 26, 9)]:
         trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
@@ -73,20 +73,31 @@ def analyze_old_data():
                                                            min_sample_window=30, entry_params=params,
                                                            exit_params=params)
         trader = ProfessionalTrader(trading_client, analyzer)
-        manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol), min_event_delay=-1)
+        manager = StreamManager(trader, lambda j_elem: MarketTickEntity.map_file_row(j_elem, symbol),
+                                min_event_delay=-1)
 
         factory.open_file_kline_connection(processor=lambda event: manager.consume(event), symbol=symbol)
-        trades = trading_client.get_all_trades()
-        with open(BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}.json".format(fast, slow, signal), 'w') as handle:
-            json.dump(trades, handle, indent=1)
+        longs, shorts = trading_client.get_all_trades()
+        trades = []
+        trades.extend(longs), trades.extend(shorts)
+        save_csv_and_json_output(trades,
+                                 BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}".format(fast, slow, signal))
+        save_csv_and_json_output(longs,
+                                 BINANCE.DATA_FILE_WRITE_BASE_PATH + "long_trades_{}_{}_{}".format(fast, slow, signal))
+        save_csv_and_json_output(shorts,
+                                 BINANCE.DATA_FILE_WRITE_BASE_PATH + "short_trades_{}_{}_{}".format(fast, slow, signal))
 
-        save_csv_and_json_output(trades, BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}".format(fast, slow, signal))
-        profit_loss = __profit_loss_analysis()
-        profit_loss[MACDParams.FAST] = fast
-        profit_loss[MACDParams.SLOW] = slow
-        profit_loss[MACDParams.SIGNAL] = signal
-        result.append(profit_loss)
+        def generate_profit_loss(trade_list, trade_type):
+            profit_loss = __profit_loss_analysis(trade_list)
+            profit_loss[MACDParams.FAST] = fast
+            profit_loss[MACDParams.SLOW] = slow
+            profit_loss[MACDParams.SIGNAL] = signal
+            profit_loss[LongTrade.TRADE_TYPE] = trade_type
+            result.append(profit_loss)
 
+        generate_profit_loss(trades, "ALL")
+        generate_profit_loss(longs, "longs")
+        generate_profit_loss(shorts, "shorts")
 
     with open(BINANCE.DATA_FILE_WRITE_BASE_PATH + "profit_loss_multi.json", 'w') as handle:
         json.dump(result, handle, indent=1)

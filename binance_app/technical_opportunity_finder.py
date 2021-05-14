@@ -38,13 +38,14 @@ class DifferenceBasedOpportunityFinder(OpportunityFinder):
         if self.diff_prev() < 0 and self.diff_cur() >= 0:
             result = IndicatorDirection.POSITIVE
 
-        elif self.diff_prev() >= 0 and self.diff_cur() < 0:
+        elif self.diff_prev() >= 0 and self.diff_cur() < 0 or self.sell_anyway():
             result = IndicatorDirection.NEGATIVE
 
         elif self.diff_prev() >= 0 and self.diff_cur() >= 0:
             result = IndicatorDirection.POSITIVE_SUSTAINED
 
-        elif self.diff_prev() < 0 and self.diff_cur() < 0:
+        # elif self.diff_prev() < 0 and self.diff_cur() < 0:
+        else:
             result = IndicatorDirection.NEGATIVE_SUSTAINED
 
         return result
@@ -56,6 +57,10 @@ class DifferenceBasedOpportunityFinder(OpportunityFinder):
     @abc.abstractmethod
     def diff_cur(self):
         pass
+
+    @abc.abstractmethod
+    def sell_anyway(self):
+        return False
 
 
 class MovingAvgOpportunityFinder(DifferenceBasedOpportunityFinder):
@@ -79,6 +84,9 @@ class MovingAvgOpportunityFinder(DifferenceBasedOpportunityFinder):
 
     def diff_cur(self):
         return self.diffs[-1]
+
+    def sell_anyway(self):
+        return False
 
 
 class MACDOpportunityFinder(DifferenceBasedOpportunityFinder):
@@ -107,3 +115,15 @@ class MACDOpportunityFinder(DifferenceBasedOpportunityFinder):
 
     def diff_prev(self):
         return self.macd_diff[-2]
+
+    def sell_anyway(self):
+        return False
+
+
+class MACDOpportunityFinderWithEarlySell(MACDOpportunityFinder):
+    def __init__(self, cur_tick, cur_df, config=MACDParams.params):
+        super().__init__(cur_tick, cur_df, config)
+
+    def sell_anyway(self):
+        return self.macd_diff[-3] > self.macd_diff[-2] > self.macd_diff[-1]
+
