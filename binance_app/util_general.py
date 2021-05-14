@@ -75,7 +75,7 @@ def getCurrentTimeStamp():
     return timegm(datetime.now().utctimetuple())
 
 
-def strptime(val):
+def strptime(val) -> datetime:
     if '.' not in val:
         return datetime.strptime(val, "%Y-%m-%dT%H:%M:%S")
 
