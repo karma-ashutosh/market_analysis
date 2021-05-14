@@ -88,7 +88,9 @@ def strptime(val) -> datetime:
 
 
 def strp_kite_time(val) -> datetime:
-    return strptime(val.split("+")[0])
+    result = strptime(val.split("+")[0])
+    # print("val is {} and result is {}".format(val, result))
+    return result
 
 
 app_logger = setup_logger('app_logger', '../logs/app.log', msg_only=True)
