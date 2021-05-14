@@ -1,3 +1,5 @@
+from util_general import strptime
+
 class MarketTickEntity:
     # to see the full list of parameters in k_line, visit
     # https://github.com/binance/binance-spot-api-docs/blob/master/web-socket-streams.md#aggregate-trade-streams
@@ -104,5 +106,14 @@ class MarketTickEntity:
         return result
 
     @staticmethod
-    def map_from_kite_event(j_elem: dict):
-        pass
+    def map_from_kite_event(kite_historical_api_data_point: list, symbol):
+        result = MarketTickEntity()
+        result.raw_event = kite_historical_api_data_point
+        result.date = kite_historical_api_data_point[0]
+        result.open = kite_historical_api_data_point[1]
+        result.high = kite_historical_api_data_point[2]
+        result.low = kite_historical_api_data_point[3]
+        result.close = kite_historical_api_data_point[4]
+        result.volume = kite_historical_api_data_point[5]
+        result.symbol = symbol
+        return result
