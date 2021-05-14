@@ -1,8 +1,8 @@
 
 class KITE:
-    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/current_daily_data"
-    DATA_FILE_WRITE_BASE_PATH = "/data/kite_websocket_data/current_daily_data"
-    SYMBOL = "ADANIPORTS"
+    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/current_daily_data/"
+    DATA_FILE_WRITE_BASE_PATH = "/data/kite_websocket_data/"
+    SYMBOL = "ADANIPORTS_3861249"
 
 
 class BINANCE:

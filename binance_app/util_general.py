@@ -87,4 +87,8 @@ def strptime(val) -> datetime:
     return date.replace(microsecond=int(frag))
 
 
+def strp_kite_time(val) -> datetime:
+    return strptime(val.split("+")[0])
+
+
 app_logger = setup_logger('app_logger', '../logs/app.log', msg_only=True)

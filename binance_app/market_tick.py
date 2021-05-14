@@ -1,4 +1,4 @@
-from util_general import strptime
+from util_general import strp_kite_time
 
 
 class MarketTickEntity:
@@ -110,7 +110,7 @@ class MarketTickEntity:
     def map_from_kite_event(kite_historical_api_data_point: list, symbol):
         result = MarketTickEntity()
         result.raw_event = kite_historical_api_data_point
-        result.window_end_epoch_seconds = strptime(kite_historical_api_data_point[0]).timestamp()
+        result.window_end_epoch_seconds = strp_kite_time(kite_historical_api_data_point[0]).timestamp()
         result.open = kite_historical_api_data_point[1]
         result.high = kite_historical_api_data_point[2]
         result.low = kite_historical_api_data_point[3]
