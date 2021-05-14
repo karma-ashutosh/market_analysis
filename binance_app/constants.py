@@ -1,7 +1,7 @@
 
 class KITE:
-    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/current_daily_data/"
-    DATA_FILE_WRITE_BASE_PATH = "/data/kite_websocket_data/"
+    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/historical/2020_21/"
+    DATA_FILE_WRITE_BASE_PATH = "/data/kite_websocket_data/historical/"
     SYMBOL = "ADANIPORTS_3861249"
 
 
