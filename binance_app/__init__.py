@@ -116,9 +116,9 @@ def analyze_binance_old_data():
 
 
 def analyze_kite_old_data():
-    all_pnl = []
     # for year in ["2019_20", "2018_19", "2017_18", "2016_17", "2015_16", "2021"]:
     for year in ["2019_20", "2018_19"]:
+        all_pnl = []
 
         print("year is : " + year)
 
