@@ -137,6 +137,7 @@ class AcademicTradeExecutor(TradeExecutor):
             return TradeResult(TradeType.BUY, self.__cur_long_trade.buy_price, self.__cur_long_trade.total_stocks)
 
     def sell(self, tick: MarketTickEntity, opp: Opportunity, price=None) -> TradeResult:
+        # print("Selling and closing position with {}".format(self.__cur_long_trade))
         if self.__cur_long_trade is not None:
             self.__cur_long_trade.sell_at(tick, opp.attrs, price=price)
             self.__long_trades.append(self.__cur_long_trade)

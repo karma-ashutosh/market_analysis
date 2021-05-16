@@ -54,10 +54,10 @@ class LongTrade:
             LongTrade.SELL: self.sell_price,
             LongTrade.PNL: self.profit_or_loss,
             LongTrade.TOTAL_STOCKS: self.total_stocks,
-            LongTrade.BUY_TIME: datetime.fromtimestamp(self.buy_time / 1000).strftime(
-                "%m/%d/%Y, %H:%M:%S"),
-            LongTrade.SELL_TIME: datetime.fromtimestamp(self.sell_time / 1000).strftime(
-                "%m/%d/%Y, %H:%M:%S"),
+            LongTrade.BUY_TIME: datetime.fromtimestamp(self.buy_time).strftime(
+                "%m/%d/%Y, %H:%M:%S") if self.buy_time else None,
+            LongTrade.SELL_TIME: datetime.fromtimestamp(self.sell_time).strftime(
+                "%m/%d/%Y, %H:%M:%S") if self.sell_time else None,
             LongTrade.BUY_ATTRS: self.buy_attrs,
             LongTrade.SELL_ATTRS: self.sell_attrs,
             LongTrade.TRADE_TYPE: "LONG"
@@ -65,7 +65,7 @@ class LongTrade:
         return result
 
     def __str__(self):
-        result = self.to_json
+        result = self.to_json()
         return json.dumps(result, indent=1)
 
 
