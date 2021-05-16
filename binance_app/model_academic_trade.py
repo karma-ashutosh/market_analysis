@@ -18,9 +18,12 @@ class LongTrade:
 
     def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict, price=None):
         self.symbol = symbol
-        self.trading_fee_percentage = 0.1
+        self.trading_fee_percentage = 0
         self.total_amount = 100000
+        self.trading_fee_paid = 0
+
         self.effective_amount = self.__amount_left_after_fee(self.total_amount)
+        self.trading_fee_paid = self.trading_fee_paid + (self.total_amount - self.effective_amount)
 
         self.buy_price = buy_tick.close if not price else price
         self.buy_time = buy_tick.window_end_epoch_seconds
@@ -45,7 +48,16 @@ class LongTrade:
         self.sell_time = tick.window_end_epoch_seconds
         amount_returned = self.sell_price * self.total_stocks
         after_fee = self.__amount_left_after_fee(amount_returned)
+        self.trading_fee_paid = self.trading_fee_paid + (amount_returned - after_fee)
         self.profit_or_loss = after_fee - self.total_amount
+        margin_percentage = (self.profit_or_loss / self.total_amount) * 100
+        fpr = '.3f'
+        print("Stock : {}\tBuy Price: {}\tSell Price: {}\tsold_early: {}\tmargin: {}\tmargin_percentage: {}, trading_fee: {}"
+              .format(self.symbol, format(self.buy_price, fpr),
+                      format(self.sell_price, fpr), price is not None,
+                      format(self.profit_or_loss, fpr),
+                      format(margin_percentage, fpr),
+                      format(self.trading_fee_paid, fpr)))
 
     def to_json(self):
         result = {

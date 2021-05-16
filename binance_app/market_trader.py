@@ -37,14 +37,34 @@ class ProfessionalTrader(MarketTrader):
     def __long_book_loss(self, evaluation_price: float):
         buying_price = self.current_long_pos.trade_price
         threshold_price = buying_price * (100 - self.stoploss_threshold) / 100
-        return evaluation_price < threshold_price, threshold_price
+        should_book_loss = evaluation_price < threshold_price
+
+        # if should_book_loss:
+        #     print("recommending threshold_price of : {} for booking loss against buy_price: {}".format(threshold_price,
+        #                                                                                                buying_price))
+        return should_book_loss, threshold_price
 
     def consume(self, event: MarketTickEntity):
         opportunity = self.opportunity_finder.find_opportunity(event)
 
         trade_executed = False
         long_result = None
-        if self.take_longs:
+
+        if self.take_longs and self.current_long_pos:
+            high, low = event.high, event.low
+            should_book_loss, loss_threshold = self.__long_book_loss(low)
+            should_book_profit, profit_threshold = self.__long_book_profit(high)
+            # assuming worse case first then best case
+            if should_book_loss:
+                long_result = self.trade_executor.sell(event, opportunity, price=loss_threshold)
+                self.current_long_pos = None
+                trade_executed = True
+            elif should_book_profit:
+                long_result = self.trade_executor.sell(event, opportunity, price=profit_threshold)
+                self.current_long_pos = None
+                trade_executed = True
+
+        if self.take_longs and not trade_executed:
             if opportunity.direction is IndicatorDirection.POSITIVE:
                 if not self.current_long_pos:
                     long_result = self.trade_executor.buy(event, opportunity)
@@ -56,21 +76,7 @@ class ProfessionalTrader(MarketTrader):
                     self.current_long_pos = None
                     trade_executed = True
             else:
-                if self.current_long_pos:
-                    high, low = event.high, event.low
-                    should_book_loss, loss_threshold = self.__long_book_loss(low)
-                    should_book_profit, profit_threshold = self.__long_book_profit(high)
-                    # assuming worse case first then best case
-                    if should_book_loss:
-                        long_result = self.trade_executor.sell(event, opportunity, price=loss_threshold)
-                        trade_executed = True
-                    elif should_book_profit:
-                        long_result = self.trade_executor.sell(event, opportunity, price=profit_threshold)
-                        trade_executed = True
-                    else:
-                        long_result = {'opp_type': opportunity.direction.name}
-                else:
-                    long_result = {'opp_type': opportunity.direction.name}
+                long_result = {'opp_type': opportunity.direction.name}
 
         short_result = None
         if self.take_shorts:
