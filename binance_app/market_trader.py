@@ -31,11 +31,13 @@ class ProfessionalTrader(MarketTrader):
 
     def __long_book_profit(self, evaluation_price: float):
         buying_price = self.current_long_pos.trade_price
-        return evaluation_price > buying_price * (100 + self.profit_threshold) / 100
+        threshold_price = buying_price * (100 + self.profit_threshold) / 100
+        return evaluation_price > threshold_price, threshold_price
 
     def __long_book_loss(self, evaluation_price: float):
         buying_price = self.current_long_pos.trade_price
-        return evaluation_price < buying_price * (100 - self.stoploss_threshold) / 100
+        threshold_price = buying_price * (100 - self.stoploss_threshold) / 100
+        return evaluation_price < threshold_price, threshold_price
 
     def consume(self, event: MarketTickEntity):
         opportunity = self.opportunity_finder.find_opportunity(event)
@@ -56,13 +58,15 @@ class ProfessionalTrader(MarketTrader):
             else:
                 if self.current_long_pos:
                     high, low = event.high, event.low
+                    should_book_loss, loss_threshold = self.__long_book_loss(low)
+                    should_book_profit, profit_threshold = self.__long_book_profit(high)
                     # assuming worse case first then best case
-                    if self.__long_book_loss(low):
+                    if should_book_loss:
+                        long_result = self.trade_executor.sell(event, opportunity, price=loss_threshold)
                         trade_executed = True
-                        long_result = self.trade_executor.sell(event, opportunity, price=low)
-                    elif self.__long_book_profit(high):
+                    elif should_book_profit:
+                        long_result = self.trade_executor.sell(event, opportunity, price=profit_threshold)
                         trade_executed = True
-                        long_result = self.trade_executor.sell(event, opportunity, price=high)
                     else:
                         long_result = {'opp_type': opportunity.direction.name}
                 else:
