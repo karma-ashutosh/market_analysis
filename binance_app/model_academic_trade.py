@@ -67,9 +67,9 @@ class LongTrade:
             LongTrade.PNL: self.profit_or_loss,
             LongTrade.TOTAL_STOCKS: self.total_stocks,
             LongTrade.BUY_TIME: datetime.fromtimestamp(self.buy_time).strftime(
-                "%m/%d/%Y, %H:%M:%S") if self.buy_time else None,
+                "%m/%d/%Y, %H:%M:%S").replace(',', '-') if self.buy_time else None,
             LongTrade.SELL_TIME: datetime.fromtimestamp(self.sell_time).strftime(
-                "%m/%d/%Y, %H:%M:%S") if self.sell_time else None,
+                "%m/%d/%Y, %H:%M:%S").replace(',', '-') if self.sell_time else None,
             LongTrade.BUY_ATTRS: self.buy_attrs,
             LongTrade.SELL_ATTRS: self.sell_attrs,
             LongTrade.TRADE_TYPE: "LONG"
