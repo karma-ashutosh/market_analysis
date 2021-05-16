@@ -70,7 +70,8 @@ def file_analyzer(event_mapper, file_connection, symbol, macd_params=(12, 26, 9)
                                                        min_sample_window=30, entry_params=params,
                                                        exit_params=params)
     trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
-    trader = ProfessionalTrader(trading_client, analyzer)
+    trader = ProfessionalTrader(trading_client, analyzer, take_longs=True, take_shorts=False, profit_threshold=2,
+                                stoploss_threshold=2)
     manager = StreamManager(trader, lambda j_elem: event_mapper(j_elem, symbol), min_event_delay=-1)
 
     file_connection(processor=lambda event: manager.consume(event), symbol=symbol)
