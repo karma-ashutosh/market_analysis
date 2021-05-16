@@ -26,6 +26,15 @@ class Factory:
         for event in events:
             processor(event)
 
+    @staticmethod
+    def open_file_kite_connection_with_path(base_path):
+        def open_file_kite_connection(processor=lambda msg: print(msg), symbol=BINANCE.SYMBOL):
+            with open(base_path + symbol + ".json") as handle:
+                events = json.load(handle)
+            for event in events:
+                processor(event)
+        return open_file_kite_connection
+
     def open_kline_connection(self, processor=lambda msg: print(msg), symbol=BINANCE.SYMBOL):
         bm = BinanceSocketManager(self.client)
         bm.start_kline_socket(symbol, processor, interval=Client.KLINE_INTERVAL_1MINUTE)

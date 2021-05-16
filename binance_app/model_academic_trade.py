@@ -16,13 +16,13 @@ class LongTrade:
     SELL_ATTRS = "sell_attrs"
     TRADE_TYPE = "trade_type"
 
-    def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict):
+    def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict, price=None):
         self.symbol = symbol
         self.trading_fee_percentage = 0.1
         self.total_amount = 100000
         self.effective_amount = self.__amount_left_after_fee(self.total_amount)
 
-        self.buy_price = buy_tick.close
+        self.buy_price = buy_tick.close if not price else price
         self.buy_time = buy_tick.window_end_epoch_seconds
         self.buy_attrs = attrs
 
@@ -39,9 +39,9 @@ class LongTrade:
         effective_amount = amount * (1 - self.trading_fee_percentage / 100)
         return effective_amount
 
-    def sell_at(self, tick: MarketTickEntity, attrs: dict):
+    def sell_at(self, tick: MarketTickEntity, attrs: dict, price=None):
         self.sell_attrs = attrs
-        self.sell_price = tick.close
+        self.sell_price = tick.close if not price else price
         self.sell_time = tick.window_end_epoch_seconds
         amount_returned = self.sell_price * self.total_stocks
         after_fee = self.__amount_left_after_fee(amount_returned)
@@ -70,13 +70,13 @@ class LongTrade:
 
 
 class ShortTrade:
-    def __init__(self, symbol, sell_tick: MarketTickEntity, attrs: dict):
+    def __init__(self, symbol, sell_tick: MarketTickEntity, attrs: dict, price=None):
         self.symbol = symbol
         self.trading_fee_percentage = 0.1
         self.total_amount = 10000
         self.effective_amount = self.__amount_left_after_fee(self.total_amount)
 
-        self.sell_price = sell_tick.close
+        self.sell_price = sell_tick.close if not price else price
         self.sell_time = sell_tick.window_end_epoch_seconds
         self.sell_attrs = attrs
         self.total_stocks = self.effective_amount / self.sell_price
@@ -97,9 +97,9 @@ class ShortTrade:
         needed = amount / (1 - self.trading_fee_percentage / 100)
         return needed
 
-    def buy_at(self, tick: MarketTickEntity, attrs: dict):
+    def buy_at(self, tick: MarketTickEntity, attrs: dict, price=None):
         self.buy_attrs = attrs
-        self.buy_price = tick.close
+        self.buy_price = tick.close if not price else price
         self.buy_time = tick.window_end_epoch_seconds
         buy_amount = self.buy_price * self.total_stocks
         amount_spent = self.__amount_needed_for_after_fee_amount(buy_amount)

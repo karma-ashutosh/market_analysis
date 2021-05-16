@@ -1,6 +1,5 @@
 class KITE:
-    year = "2019_20"
-    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/historical/{}/".format(year)
+    DATA_FILE_READ_BASE_PATH = "/data/kite_websocket_data/historical/"
     DATA_FILE_WRITE_BASE_PATH = "/data/kite_websocket_data/historical/all_pnl_files/"
     SYMBOL = "ADANIPORTS_3861249"
     SYMBOLS = ['ADANIPORTS_3861249', 'ASIANPAINT_60417', 'BAJAJ-AUTO_4267265', 'BAJAJFINSV_4268801',

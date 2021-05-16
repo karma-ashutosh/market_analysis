@@ -1,5 +1,6 @@
 import abc
 
+from trade_models import TradeResult
 from market_tick import MarketTickEntity
 from market_tick_analyzer import MarketTickConsolidatedOpportunityFinder, IndicatorDirection
 from provider import TradeExecutor
@@ -17,32 +18,70 @@ class MarketTrader:
 
 
 class ProfessionalTrader(MarketTrader):
-    def __init__(self, trade_executor: TradeExecutor, opportunity_finder: MarketTickConsolidatedOpportunityFinder):
+    def __init__(self, trade_executor: TradeExecutor, opportunity_finder: MarketTickConsolidatedOpportunityFinder,
+                 take_longs: bool = True, take_shorts: bool = False, profit_threshold=2, stoploss_threshold=2):
         super().__init__(trade_executor, opportunity_finder)
-        self.holds_instrument = False
+        self.current_long_pos: TradeResult = None
+        self.current_short_pos: TradeResult = None
+        self.take_longs = take_longs
+        self.take_shorts = take_shorts
+
+        self.profit_threshold = profit_threshold
+        self.stoploss_threshold = stoploss_threshold
+
+    def __long_book_profit(self, evaluation_price: float):
+        buying_price = self.current_long_pos.trade_price
+        return evaluation_price > buying_price * (100 + self.profit_threshold) / 100
+
+    def __long_book_loss(self, evaluation_price: float):
+        buying_price = self.current_long_pos.trade_price
+        return evaluation_price < buying_price * (100 - self.stoploss_threshold) / 100
 
     def consume(self, event: MarketTickEntity):
         opportunity = self.opportunity_finder.find_opportunity(event)
 
-        if opportunity.direction is IndicatorDirection.NEGATIVE_SUSTAINED \
-                or opportunity.direction is IndicatorDirection.POSITIVE_SUSTAINED \
-                or opportunity.direction is IndicatorDirection.NOT_ANALYZED:
-            app_logger.info("No opportunity made for event at time: {}".format(event.event_time))
-            return None
-
         trade_executed = False
-        if opportunity.direction is IndicatorDirection.POSITIVE:
-            long_result = self.trade_executor.buy(event, opportunity)
-            short_result = self.trade_executor.square_short(event, opportunity)
-            trade_executed = True
-        elif opportunity.direction is IndicatorDirection.NEGATIVE:
-            long_result = self.trade_executor.sell(event, opportunity)
-            short_result = self.trade_executor.take_short(event, opportunity)
-            trade_executed = True
-        else:
-            long_result = {'opp_type': opportunity.direction.name}
-            short_result = {'opp_type': opportunity.direction.name}
+        long_result = None
+        if self.take_longs:
+            if opportunity.direction is IndicatorDirection.POSITIVE:
+                if not self.current_long_pos:
+                    long_result = self.trade_executor.buy(event, opportunity)
+                    self.current_long_pos = long_result
+                    trade_executed = True
+            elif opportunity.direction is IndicatorDirection.NEGATIVE:
+                if self.current_long_pos:
+                    long_result = self.trade_executor.sell(event, opportunity)
+                    self.current_long_pos = None
+                    trade_executed = True
+            else:
+                if self.current_long_pos:
+                    high, low = event.high, event.low
+                    # assuming worse case first then best case
+                    if self.__long_book_loss(low):
+                        trade_executed = True
+                        long_result = self.trade_executor.sell(event, opportunity, price=low)
+                    elif self.__long_book_profit(high):
+                        trade_executed = True
+                        long_result = self.trade_executor.sell(event, opportunity, price=high)
+                    else:
+                        long_result = {'opp_type': opportunity.direction.name}
+                else:
+                    long_result = {'opp_type': opportunity.direction.name}
 
-        app_logger.info("executed trade successfully: {}\nReturning result long: {}, short: {}"
-                        .format(trade_executed, long_result, short_result))
+        short_result = None
+        if self.take_shorts:
+            if opportunity.direction is IndicatorDirection.POSITIVE:
+                short_result = self.trade_executor.square_short(event, opportunity)
+                trade_executed = True
+            elif opportunity.direction is IndicatorDirection.NEGATIVE:
+                short_result = self.trade_executor.take_short(event, opportunity)
+                trade_executed = True
+            else:
+                short_result = {'opp_type': opportunity.direction.name}
+
+        if trade_executed:
+            app_logger.info("executed trade successfully: {}\nReturning result long: {}, short: {}"
+                            .format(trade_executed, long_result, short_result))
+        else:
+            app_logger.info("No opportunity made for event at time: {}".format(event.event_time))
         return long_result, short_result

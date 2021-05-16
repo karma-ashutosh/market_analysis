@@ -116,29 +116,34 @@ def analyze_binance_old_data():
 
 def analyze_kite_old_data():
     all_pnl = []
-    for symbol in KITE.SYMBOLS:
-        factory = Factory()
-        event_mapper = MarketTickEntity.map_from_kite_event
-        file_connection = factory.open_file_kite_connection
-        fast, slow, signal = (12, 26, 9)
-        long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
-                                                     macd_params=(fast, slow, signal))
-        # save_csv_and_json_output(all_trades,
-        #                          KITE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}_{}".format(symbol, fast, slow,
-        #                                                                                       signal))
-        # save_csv_and_json_output(all_trades,
-        #                          KITE.DATA_FILE_WRITE_BASE_PATH + "long_trades_{}_{}_{}_{}".format(symbol, fast, slow,
-        #                                                                                            signal))
-        # save_csv_and_json_output(all_trades,
-        #                          KITE.DATA_FILE_WRITE_BASE_PATH + "short_trades_{}_{}_{}_{}".format(symbol, fast, slow,
-        #                                                                                             signal))
-        #
-        # with open(KITE.DATA_FILE_WRITE_BASE_PATH + "profit_loss_multi_{}.json".format(symbol), 'w') as handle:
-        #     json.dump(pnl, handle, indent=1)
+    # for year in ["2019_20", "2018_19", "2017_18", "2016_17", "2015_16", "2021"]:
+    for year in ["2019_20", "2018_19"]:
 
-        all_pnl.extend(pnl)
+        print("year is : " + year)
 
-    save_csv_and_json_output(all_pnl, KITE.DATA_FILE_WRITE_BASE_PATH + "all_pnl_{}".format(KITE.year))
+        for symbol in KITE.SYMBOLS:
+            factory = Factory()
+            event_mapper = MarketTickEntity.map_from_kite_event
+            file_connection = factory.open_file_kite_connection_with_path(KITE.DATA_FILE_READ_BASE_PATH + year + "/")
+            fast, slow, signal = (12, 26, 9)
+            long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
+                                                         macd_params=(fast, slow, signal))
+            # save_csv_and_json_output(all_trades,
+            #                          KITE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}_{}".format(symbol, fast, slow,
+            #                                                                                       signal))
+            # save_csv_and_json_output(all_trades,
+            #                          KITE.DATA_FILE_WRITE_BASE_PATH + "long_trades_{}_{}_{}_{}".format(symbol, fast, slow,
+            #                                                                                            signal))
+            # save_csv_and_json_output(all_trades,
+            #                          KITE.DATA_FILE_WRITE_BASE_PATH + "short_trades_{}_{}_{}_{}".format(symbol, fast, slow,
+            #                                                                                             signal))
+            #
+            # with open(KITE.DATA_FILE_WRITE_BASE_PATH + "profit_loss_multi_{}.json".format(symbol), 'w') as handle:
+            #     json.dump(pnl, handle, indent=1)
+
+            all_pnl.append(pnl[1])
+
+        save_csv_and_json_output(all_pnl, KITE.DATA_FILE_WRITE_BASE_PATH + "/stoploss_and_threshold/" + "all_pnl_{}".format(year))
 
 
 if __name__ == '__main__':

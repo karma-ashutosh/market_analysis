@@ -39,19 +39,19 @@ class TradeExecutor:
         self.symbol = symbol
 
     @abc.abstractmethod
-    def buy(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def buy(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         pass
 
     @abc.abstractmethod
-    def sell(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def sell(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         pass
 
     @abc.abstractmethod
-    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         pass
 
     @abc.abstractmethod
-    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         pass
 
 
@@ -71,7 +71,7 @@ class BinanceTradeExecutor(TradeExecutor):
         app_logger.error("request: {}".format(format_prepped_request(parsed.request)))
         return parsed
 
-    def buy(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+    def buy(self, tick: MarketTickEntity, opp: Opportunity, price=None) -> TradeResult:
         cur_price = tick.close
         holding = self.__tradable_held_quantity()
         total_worth = holding * cur_price
@@ -92,7 +92,7 @@ class BinanceTradeExecutor(TradeExecutor):
                 app_logger.error(self.handle_api_exception(e))
                 return TradeResult(TradeType.FAIL, 0, 0)
 
-    def sell(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+    def sell(self, tick: MarketTickEntity, opp: Opportunity, price=None) -> TradeResult:
 
         cur_price = tick.close
         try:
@@ -109,10 +109,10 @@ class BinanceTradeExecutor(TradeExecutor):
             app_logger.error(self.handle_api_exception(e))
             return TradeResult(TradeType.FAIL, 0, 0)
 
-    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         pass
 
-    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         pass
 
     def __tradable_held_quantity(self):
@@ -130,34 +130,34 @@ class AcademicTradeExecutor(TradeExecutor):
         self.__cur_long_trade: LongTrade = None
         self.__cur_short_trade: ShortTrade = None
 
-    def buy(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+    def buy(self, tick: MarketTickEntity, opp: Opportunity, price=None) -> TradeResult:
         if not self.__cur_long_trade:
-            self.__cur_long_trade = LongTrade(self.symbol, tick, opp.attrs)
-            app_logger.info("Buying {} at price {}".format(self.symbol, tick.close))
-            return TradeResult(TradeType.BUY, tick.close, self.__cur_long_trade.total_stocks)
+            self.__cur_long_trade = LongTrade(self.symbol, tick, opp.attrs, price=price)
+            app_logger.info("Buying {} at price {}".format(self.symbol, tick.close if not price else price))
+            return TradeResult(TradeType.BUY, self.__cur_long_trade.buy_price, self.__cur_long_trade.total_stocks)
 
-    def sell(self, tick: MarketTickEntity, opp: Opportunity) -> TradeResult:
+    def sell(self, tick: MarketTickEntity, opp: Opportunity, price=None) -> TradeResult:
         if self.__cur_long_trade is not None:
-            self.__cur_long_trade.sell_at(tick, opp.attrs)
+            self.__cur_long_trade.sell_at(tick, opp.attrs, price=price)
             self.__long_trades.append(self.__cur_long_trade)
-            app_logger.info("Selling {} at price {}".format(self.symbol, tick.close))
+            app_logger.info("Selling {} at price {}".format(self.symbol, tick.close if not price else price))
 
-            result = TradeResult(TradeType.SELL, tick.close, self.__cur_long_trade.total_stocks)
+            result = TradeResult(TradeType.SELL, self.__cur_long_trade.sell_price, self.__cur_long_trade.total_stocks)
             self.__cur_long_trade = None
             return result
 
-    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def take_short(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         if not self.__cur_short_trade:
             self.__cur_short_trade = ShortTrade(self.symbol, tick, opportunity.attrs)
-            app_logger.info("Shorting {} at price {}".format(self.symbol, tick.close))
-            return TradeResult(TradeType.SELL, tick.close, self.__cur_short_trade.total_stocks)
+            app_logger.info("Shorting {} at price {}".format(self.symbol, tick.close if not price else price))
+            return TradeResult(TradeType.SELL, self.__cur_short_trade.sell_price, self.__cur_short_trade.total_stocks)
 
-    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity) -> TradeResult:
+    def square_short(self, tick: MarketTickEntity, opportunity: Opportunity, price=None) -> TradeResult:
         if self.__cur_short_trade:
-            self.__cur_short_trade.buy_at(tick, attrs=opportunity.attrs)
+            self.__cur_short_trade.buy_at(tick, attrs=opportunity.attrs, price=price)
             self.__short_trades.append(self.__cur_short_trade)
 
-            result = TradeResult(TradeType.BUY, tick.close, self.__cur_short_trade.total_stocks)
+            result = TradeResult(TradeType.BUY, self.__cur_short_trade.buy_price, self.__cur_short_trade.total_stocks)
             self.__cur_short_trade = None
             return result
 
