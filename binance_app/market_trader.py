@@ -28,6 +28,8 @@ class ProfessionalTrader(MarketTrader):
 
         self.profit_threshold = profit_threshold
         self.stoploss_threshold = stoploss_threshold
+        # self.stoploss_threshold = 2
+        self.prev_high = -1
 
     def __long_book_profit(self, evaluation_price: float):
         buying_price = self.current_long_pos.trade_price
@@ -35,7 +37,8 @@ class ProfessionalTrader(MarketTrader):
         return evaluation_price > threshold_price, threshold_price
 
     def __long_book_loss(self, evaluation_price: float):
-        buying_price = self.current_long_pos.trade_price
+        # buying_price = self.current_long_pos.trade_price
+        buying_price = self.prev_high
         threshold_price = buying_price * (100 - self.stoploss_threshold) / 100
         should_book_loss = evaluation_price < threshold_price
 
@@ -63,13 +66,20 @@ class ProfessionalTrader(MarketTrader):
                 long_result = self.trade_executor.sell(event, opportunity, price=profit_threshold)
                 self.current_long_pos = None
                 trade_executed = True
+            else:
+                self.prev_high = event.high if event.high > self.prev_high else self.prev_high
 
         if self.take_longs and not trade_executed:
             if opportunity.direction is IndicatorDirection.POSITIVE:
                 if not self.current_long_pos:
-                    long_result = self.trade_executor.buy(event, opportunity)
+                    # from technical_value_calculator import TechCalc
+                    # obv_strength = sum(TechCalc.OBV(self.opportunity_finder.cur_df))
+                    # print("obv_strength: {}".format(obv_strength))
+                    # if obv_strength > 3:
+                    long_result: TradeResult = self.trade_executor.buy(event, opportunity)
                     self.current_long_pos = long_result
                     trade_executed = True
+                    self.prev_high = long_result.trade_price
             elif opportunity.direction is IndicatorDirection.NEGATIVE:
                 if self.current_long_pos:
                     long_result = self.trade_executor.sell(event, opportunity)

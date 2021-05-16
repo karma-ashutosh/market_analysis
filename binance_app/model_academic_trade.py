@@ -52,8 +52,10 @@ class LongTrade:
         self.profit_or_loss = after_fee - self.total_amount
         margin_percentage = (self.profit_or_loss / self.total_amount) * 100
         fpr = '.3f'
-        print("Stock : {}\tBuy Price: {}\tSell Price: {}\tsold_early: {}\tmargin: {}\tmargin_percentage: {}, trading_fee: {}"
-              .format(self.symbol, format(self.buy_price, fpr),
+        print("Stock : {}\tBuy Date: {}\tBuy Price: {}\tSell Price: {}\tsold_early: {}\tmargin: {}\tmargin_percentage: {}, trading_fee: {}\n\n"
+              .format(self.symbol,
+                      str(datetime.fromtimestamp(self.buy_time)),
+                      format(self.buy_price, fpr),
                       format(self.sell_price, fpr), price is not None,
                       format(self.profit_or_loss, fpr),
                       format(margin_percentage, fpr),

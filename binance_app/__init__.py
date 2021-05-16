@@ -70,8 +70,8 @@ def file_analyzer(event_mapper, file_connection, symbol, macd_params=(12, 26, 9)
                                                        min_sample_window=30, entry_params=params,
                                                        exit_params=params)
     trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
-    trader = ProfessionalTrader(trading_client, analyzer, take_longs=True, take_shorts=False, profit_threshold=2,
-                                stoploss_threshold=2)
+    trader = ProfessionalTrader(trading_client, analyzer, take_longs=True, take_shorts=False, profit_threshold=80,
+                                stoploss_threshold=.15)
     manager = StreamManager(trader, lambda j_elem: event_mapper(j_elem, symbol), min_event_delay=-1)
 
     file_connection(processor=lambda event: manager.consume(event), symbol=symbol)
@@ -116,8 +116,8 @@ def analyze_binance_old_data():
 
 
 def analyze_kite_old_data():
-    # for year in ["2019_20", "2018_19", "2017_18", "2016_17", "2015_16", "2021"]:
-    for year in ["2019_20", "2018_19"]:
+    for year in ["2019_20", "2018_19", "2017_18", "2016_17", "2015_16", "2021"]:
+    # for year in ["2019_20", "2018_19"]:
         all_pnl = []
 
         print("year is : " + year)

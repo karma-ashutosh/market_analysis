@@ -19,8 +19,9 @@ class MovingDF:
             app_logger.info("current row count is {} and min limit is {}".format(cur_row_count, self._max_rows))
             self._cur_df = self._cur_df.append(df_row)
         else:
-            new_df = self._cur_df.append(df_row)
-            self._cur_df = new_df.iloc[1:].copy()
+            new_df = self._cur_df.append(df_row, ignore_index=True)
+            # self._cur_df = new_df.iloc[1:].copy()
+            self._cur_df = new_df.copy()
 
         return self._cur_df
 
@@ -40,9 +41,11 @@ class MarketTickConsolidatedOpportunityFinder:
 
         self.entry_params = entry_params
         self.exit_params = exit_params
+        self.cur_df = None
 
     def find_opportunity(self, tick: MarketTickEntity) -> Opportunity:
         cur_df = self.moving_df.generate_snapshot(tick)
+        self.cur_df = cur_df
 
         cur_row_count = cur_df.shape[0]
         if cur_row_count < self.window_length:
