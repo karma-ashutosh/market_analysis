@@ -59,3 +59,36 @@ class TechCalc:
         # return [(day, n_day_obv(day)) for day in (2, 3, 4, 5)]
         return [x > 0 for x in obv[-5:]]
 
+    @staticmethod
+    def HA(df: DataFrame, observe=3) -> Series:
+        try:
+            df['HA_Close'] = (df['open'] + df['high'] + df['low'] + df['close']) / 4
+
+            idx = df.index.name
+            df.reset_index(inplace=True)
+
+            for i in range(0, len(df)):
+                if i == 0:
+                    df.at[i, 'HA_Open'] = (df._get_value(i, 'open') + df._get_value(i, 'close')) / 2
+                else:
+                    df.at[i, 'HA_Open'] = (df._get_value(i - 1, 'HA_Open') + df._get_value(i - 1, 'HA_Close')) / 2
+
+            if idx:
+                df.set_index(idx, inplace=True)
+
+            # df['HA_High'] = df[['HA_Open', 'HA_Close', 'High']].max(axis=1)
+            # df['HA_Low'] = df[['HA_Open', 'HA_Close', 'Low']].min(axis=1)
+            # high = df[['HA_Open', 'HA_Close', 'high']].max(axis=1)
+            # low = df[['HA_Open', 'HA_Close', 'low']].min(axis=1)
+            # return high - low
+            # return df
+            diff = df['HA_Open'] - df['HA_Close']
+            # if all([x > 0 for x in diff]):
+            #     return 1
+            # if all([x < 0 for x in diff]):
+            #     return -1
+            # return 0
+            # return sum([x > 0 for x in diff])
+            return diff.to_list()[-15:]
+        except:
+            return -1
