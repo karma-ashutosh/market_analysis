@@ -1,6 +1,7 @@
 import pandas
 from finta import TA
 from pandas import DataFrame, Series
+import pandas as pd
 
 
 class TechCalc:
@@ -16,8 +17,34 @@ class TechCalc:
         return TA.EMA(data_frame, window).to_list()
 
     @staticmethod
+    def MACD_ORG(
+            ohlc: DataFrame,
+            period_fast: int = 12,
+            period_slow: int = 26,
+            signal: int = 9,
+            column: str = "close",
+            adjust: bool = True,
+    ) -> tuple:
+        EMA_fast = pd.Series(
+            ohlc[column].ewm(span=period_fast, adjust=adjust).mean(),
+            name="EMA_fast",
+        )
+        EMA_slow = pd.Series(
+            ohlc[column].ewm(span=period_slow, adjust=adjust).mean(),
+            name="EMA_slow",
+        )
+
+        MACD = pd.Series(EMA_fast - EMA_slow, name="MACD")
+
+        MACD_signal = pd.Series(
+            MACD.ewm(ignore_na=False, span=signal, adjust=adjust).mean(), name="SIGNAL"
+        )
+
+        return EMA_fast, EMA_slow, MACD, MACD_signal
+
+    @staticmethod
     def MACD(data_frame: DataFrame, fast, slow, signal) -> tuple:
-        df = TA.MACD(data_frame, period_fast=fast, period_slow=slow, signal=signal, column='open')
+        df = TA.MACD(data_frame, period_fast=fast, period_slow=slow, signal=signal)
         return df['MACD'], df['SIGNAL']
 
     @staticmethod
@@ -48,6 +75,7 @@ class TechCalc:
     def OBV(data_frame: DataFrame) -> list:
         # print(data_frame)
         obv = TechCalc.obv(data_frame).to_list()
+
         # print(obv)
 
         def n_day_obv(days):
@@ -92,3 +120,60 @@ class TechCalc:
             return diff.to_list()[-15:]
         except:
             return -1
+
+
+class MovingAvg:
+    def __init__(self, initial_data: list, window_size: int):
+        self.yesterday_avg = sum(initial_data) / window_size
+        self.window_size = window_size
+
+    def next(self, today_val):
+        smoothing_factor = 2
+
+        today_avg = (today_val * (smoothing_factor / (1 + self.window_size))) \
+                    + self.yesterday_avg * (1 - (smoothing_factor / (1 + self.window_size)))
+        self.yesterday_avg = today_avg
+        return today_avg
+
+
+class MACD:
+    def __init__(self, fast, slow, signal, data):
+        self.fast = MovingAvg(data[:fast], fast)
+        self.slow = MovingAvg(data[:slow], slow)
+        self.signal = None
+        self.signal_window = signal
+
+        self.fast_avgs = [None] * fast
+        self.slow_avgs = [None] * slow
+        self.macd_vals = [None] * slow
+        self.signal_vals = [None] * (slow + signal - 1)
+        for index in range(fast, len(data)):
+            fast_avg = self.fast.next(data[index])
+            self.fast_avgs.append(fast_avg)
+            if index >= slow:
+                slow_avg = self.slow.next(data[index])
+                self.slow_avgs.append(slow_avg)
+                macd_val = fast_avg - slow_avg
+                self.macd_vals.append(macd_val)
+                if not self.signal:
+                    self.__setup_signal()
+                else:
+                    self.signal_vals.append(self.signal.next(macd_val))
+
+    def next(self, today_val):
+        fast_avg = self.fast.next(today_val)
+        slow_avg = self.slow.next(today_val)
+        macd_val = fast_avg - slow_avg
+        self.fast_avgs.append(fast_avg)
+        self.slow_avgs.append(slow_avg)
+        self.macd_vals.append(macd_val)
+        self.__setup_signal()
+
+        signal = self.signal.next(macd_val) if self.signal else None
+        self.signal_vals.append(signal)
+        return fast_avg, slow_avg, fast_avg - slow_avg, signal
+
+    def __setup_signal(self):
+        non_null_macd = list(filter(lambda v: v is not None, self.macd_vals))
+        if len(non_null_macd) == self.signal_window:
+            self.signal = MovingAvg(non_null_macd, self.signal_window)
