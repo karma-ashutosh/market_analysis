@@ -19,7 +19,8 @@ class MarketTrader:
 
 class ProfessionalTrader(MarketTrader):
     def __init__(self, trade_executor: TradeExecutor, opportunity_finder: MarketTickConsolidatedOpportunityFinder,
-                 take_longs: bool = True, take_shorts: bool = False, profit_threshold=2, stoploss_threshold=2):
+                 take_longs: bool = True, take_shorts: bool = False, profit_threshold=2, stoploss_threshold=2,
+                 moving_stoploss=True):
         super().__init__(trade_executor, opportunity_finder)
         self.current_long_pos: TradeResult = None
         self.current_short_pos: TradeResult = None
@@ -29,6 +30,7 @@ class ProfessionalTrader(MarketTrader):
         self.profit_threshold = profit_threshold
         self.stoploss_threshold = stoploss_threshold
         # self.stoploss_threshold = 2
+        self.moving_stoploss = moving_stoploss
         self.prev_high = -1
 
     def __long_book_profit(self, evaluation_price: float):
@@ -37,14 +39,9 @@ class ProfessionalTrader(MarketTrader):
         return evaluation_price > threshold_price, threshold_price
 
     def __long_book_loss(self, evaluation_price: float):
-        # buying_price = self.current_long_pos.trade_price
-        buying_price = self.prev_high
+        buying_price = self.prev_high if self.moving_stoploss else self.current_long_pos.trade_price
         threshold_price = buying_price * (100 - self.stoploss_threshold) / 100
         should_book_loss = evaluation_price < threshold_price
-
-        # if should_book_loss:
-        #     print("recommending threshold_price of : {} for booking loss against buy_price: {}".format(threshold_price,
-        #                                                                                                buying_price))
         return should_book_loss, threshold_price
 
     def consume(self, event: MarketTickEntity):
