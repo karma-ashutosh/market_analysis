@@ -21,10 +21,10 @@ def live_trade_binance():
     historical_data = client.get_historical_klines(symbol=symbol, interval=client.KLINE_INTERVAL_1MINUTE,
                                                    start_str='{} min ago UTC'.format(large_window * 2))
     binance_ticks = list(map(lambda k_line: MarketTickEntity.map_historical_k_line(k_line, symbol), historical_data))
-    analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.MovingAvg,
-                                                       exit_strategy=PositionStrategy.MACD,
+    analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.CUSTOM_MACD,
+                                                       exit_strategy=PositionStrategy.CUSTOM_MACD,
                                                        min_sample_window=30,
-                                                       entry_params=MovingAvgParams.params,
+                                                       entry_params=MACDParams.params,
                                                        exit_params=MACDParams.params)
     for tick in binance_ticks:
         analyzer.find_opportunity(tick)
@@ -65,9 +65,9 @@ def file_analyzer(event_mapper, file_connection, symbol, macd_params=(12, 26, 9)
         MACDParams.SLOW: slow,
         MACDParams.SIGNAL: signal
     }
-    analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.MACD,
-                                                       exit_strategy=PositionStrategy.MACD,
-                                                       min_sample_window=30, entry_params=params,
+    analyzer = MarketTickConsolidatedOpportunityFinder(entry_strategy=PositionStrategy.CUSTOM_MACD,
+                                                       exit_strategy=PositionStrategy.CUSTOM_MACD,
+                                                       min_sample_window=40, entry_params=params,
                                                        exit_params=params)
     trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
     trader = ProfessionalTrader(trading_client, analyzer, take_longs=True, take_shorts=False, profit_threshold=80,

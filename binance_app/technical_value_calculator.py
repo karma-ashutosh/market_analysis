@@ -136,7 +136,7 @@ class MovingAvg:
         return today_avg
 
 
-class MACD:
+class CustomMACD:
     def __init__(self, fast, slow, signal, data):
         self.fast = MovingAvg(data[:fast], fast)
         self.slow = MovingAvg(data[:slow], slow)

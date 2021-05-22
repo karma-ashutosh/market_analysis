@@ -2,7 +2,7 @@ import abc
 
 from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity
 from strategy_config import MovingAvgParams, MACDParams
-from technical_value_calculator import TechCalc
+from technical_value_calculator import TechCalc, CustomMACD
 
 
 class OpportunityFinder:
@@ -89,6 +89,34 @@ class MovingAvgOpportunityFinder(DifferenceBasedOpportunityFinder):
         return False
 
 
+class CustomMACDOpportunityFinder(DifferenceBasedOpportunityFinder):
+    def __init__(self, cur_tick, cur_df, macd_vals, signal_vals):
+        super().__init__(cur_tick, cur_df)
+
+        self.signal_values = signal_vals
+        self.macd_values = macd_vals
+        self.macd_diff = [macd_vals[-2] - signal_vals[-2], macd_vals[-1] - signal_vals[-1]]
+
+
+    def indicator_summary(self) -> dict:
+        return {
+            "macd_prev": self.macd_values[-2],
+            "macd_cur": self.macd_values[-1],
+            "signal_prev": self.signal_values[-2],
+            "signal_cur": self.signal_values[-1]
+        }
+
+    def diff_cur(self):
+        return self.macd_diff[-1]
+
+    def diff_prev(self):
+        return self.macd_diff[-2]
+
+    def sell_anyway(self):
+        return False
+
+
+
 class MACDOpportunityFinder(DifferenceBasedOpportunityFinder):
     def __init__(self, cur_tick, cur_df, config=MACDParams.params):
         super().__init__(cur_tick, cur_df)
@@ -126,4 +154,3 @@ class MACDOpportunityFinderWithEarlySell(MACDOpportunityFinder):
 
     def sell_anyway(self):
         return self.macd_diff[-3] > self.macd_diff[-2] > self.macd_diff[-1]
-

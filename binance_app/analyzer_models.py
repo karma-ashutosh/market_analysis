@@ -25,6 +25,7 @@ class PositionStrategy(Enum):
     DEMA = 2
     MACD = 3
     NONE = 4
+    CUSTOM_MACD = 5
 
 
 class Opportunity:

@@ -1,7 +1,9 @@
 from pandas import DataFrame
 
 from analyzer_models import Opportunity, IndicatorDirection, IndicatorIntensity, PositionStrategy
-from technical_opportunity_finder import OpportunityFinder, MovingAvgOpportunityFinder, MACDOpportunityFinder
+from technical_opportunity_finder import OpportunityFinder, MovingAvgOpportunityFinder, MACDOpportunityFinder, \
+    CustomMACDOpportunityFinder
+from technical_value_calculator import CustomMACD
 from market_tick import MarketTickEntity
 from util_general import app_logger
 
@@ -20,8 +22,8 @@ class MovingDF:
             self._cur_df = self._cur_df.append(df_row)
         else:
             new_df = self._cur_df.append(df_row, ignore_index=True)
-            # self._cur_df = new_df.iloc[1:].copy()
-            self._cur_df = new_df.copy()
+            self._cur_df = new_df.iloc[1:].copy()
+            # self._cur_df = new_df.copy()
 
         return self._cur_df
 
@@ -42,6 +44,7 @@ class MarketTickConsolidatedOpportunityFinder:
         self.entry_params = entry_params
         self.exit_params = exit_params
         self.cur_df = None
+        self.macd_calc: CustomMACD = None
 
     def find_opportunity(self, tick: MarketTickEntity) -> Opportunity:
         cur_df = self.moving_df.generate_snapshot(tick)
@@ -51,9 +54,13 @@ class MarketTickConsolidatedOpportunityFinder:
         if cur_row_count < self.window_length:
             app_logger.info("current row count is {} and min limit is {}".format(cur_row_count, self.window_length))
             return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
+        elif not self.macd_calc:
+            self.macd_calc = CustomMACD(12, 26, 9, cur_df['close'].to_list())
+            return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
         else:
-            entry_opportunity = self.resolve_finder(self.entry_strategy, tick, cur_df, self.entry_params).cur_opportunity()
-            exit_opportunity = self.resolve_finder(self.exit_strategy, tick, cur_df, self.exit_params).cur_opportunity()
+            entry_opportunity = self.resolve_finder(self.entry_strategy, tick, cur_df,
+                                                    self.entry_params).cur_opportunity()
+            exit_opportunity = entry_opportunity
 
             entry_positive = entry_opportunity.direction == IndicatorDirection.POSITIVE
             exit_negative = exit_opportunity.direction == IndicatorDirection.NEGATIVE
@@ -67,11 +74,15 @@ class MarketTickConsolidatedOpportunityFinder:
             else:
                 return Opportunity(tick, IndicatorDirection.NOT_ANALYZED, IndicatorIntensity.ZERO)
 
-    @staticmethod
-    def resolve_finder(strategy: PositionStrategy, cur_tick, cur_df, config) -> OpportunityFinder:
+    def resolve_finder(self, strategy: PositionStrategy, cur_tick, cur_df, config) -> OpportunityFinder:
         if strategy == PositionStrategy.MovingAvg:
             return MovingAvgOpportunityFinder(cur_tick, cur_df, config)
         if strategy == PositionStrategy.MACD:
             return MACDOpportunityFinder(cur_tick, cur_df, config)
+        if strategy == PositionStrategy.CUSTOM_MACD:
+            _ignore1, _ignore2, macd, signal = self.macd_calc.next(cur_tick.close)
+            macd_vals = self.macd_calc.macd_vals
+            signal_vals = self.macd_calc.signal_vals
+            return CustomMACDOpportunityFinder(cur_tick, cur_df, macd_vals, signal_vals)
 
         raise Exception("Strategy {} not implemented".format(strategy.name))
