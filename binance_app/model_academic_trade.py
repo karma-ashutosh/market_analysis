@@ -18,7 +18,7 @@ class LongTrade:
 
     def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict, money, price):
         self.symbol = symbol
-        self.trading_fee_percentage = 0
+        self.trading_fee_percentage = 0.1
         self.total_amount = money
         self.trading_fee_paid = 0
 
@@ -52,14 +52,24 @@ class LongTrade:
         self.profit_or_loss = after_fee - self.total_amount
         margin_percentage = (self.profit_or_loss / self.total_amount) * 100
         fpr = '.3f'
-        print("Stock : {}\tBuy Date: {}\tBuy Price: {}\tSell Price: {}\tsold_early: {}\tmargin: {}\tmargin_percentage: {}, trading_fee: {}\n\n"
-              .format(self.symbol,
-                      str(datetime.fromtimestamp(self.buy_time)),
-                      format(self.buy_price, fpr),
-                      format(self.sell_price, fpr), price is not None,
-                      format(self.profit_or_loss, fpr),
-                      format(margin_percentage, fpr),
-                      format(self.trading_fee_paid, fpr)))
+        # print("Stock : {}\tBuy Date: {}\tBuy Price: {}\tSell Price: {}\tsold_early: {}\tmargin: {}\tmargin_percentage: {}, trading_fee: {}\n\n"
+        #       .format(self.symbol,
+        #               str(datetime.fromtimestamp(self.buy_time)),
+        #               format(self.buy_price, fpr),
+        #               format(self.sell_price, fpr), price is not None,
+        #               format(self.profit_or_loss, fpr),
+        #               format(margin_percentage, fpr),
+        #               format(self.trading_fee_paid, fpr)))
+
+    @staticmethod
+    def try_parse_time(source):
+        try:
+            return datetime.fromtimestamp(source).strftime("%m/%d/%Y, %H:%M:%S").replace(',', '-') if source else None
+        except:
+            try:
+                return datetime.fromtimestamp(source / 1000).strftime("%m/%d/%Y, %H:%M:%S").replace(',', '-') if source else None
+            except Exception as e:
+                raise e
 
     def to_json(self):
         result = {
@@ -68,10 +78,8 @@ class LongTrade:
             LongTrade.SELL: self.sell_price,
             LongTrade.PNL: self.profit_or_loss,
             LongTrade.TOTAL_STOCKS: self.total_stocks,
-            LongTrade.BUY_TIME: datetime.fromtimestamp(self.buy_time).strftime(
-                "%m/%d/%Y, %H:%M:%S").replace(',', '-') if self.buy_time else None,
-            LongTrade.SELL_TIME: datetime.fromtimestamp(self.sell_time).strftime(
-                "%m/%d/%Y, %H:%M:%S").replace(',', '-') if self.sell_time else None,
+            LongTrade.BUY_TIME: self.try_parse_time(self.buy_time) if self.buy_time else None,
+            LongTrade.SELL_TIME: self.try_parse_time(self.sell_time) if self.sell_time else None,
             LongTrade.BUY_ATTRS: self.buy_attrs,
             LongTrade.SELL_ATTRS: self.sell_attrs,
             LongTrade.TRADE_TYPE: "LONG"
@@ -126,10 +134,8 @@ class ShortTrade:
             LongTrade.SELL: self.sell_price,
             LongTrade.PNL: self.profit_or_loss,
             LongTrade.TOTAL_STOCKS: self.total_stocks,
-            LongTrade.BUY_TIME: datetime.fromtimestamp(self.buy_time / 1000).strftime(
-                "%m/%d/%Y, %H:%M:%S"),
-            LongTrade.SELL_TIME: datetime.fromtimestamp(self.sell_time / 1000).strftime(
-                "%m/%d/%Y, %H:%M:%S"),
+            LongTrade.BUY_TIME: LongTrade.try_parse_time(self.buy_time) if self.buy_time else None,
+            LongTrade.SELL_TIME: LongTrade.try_parse_time(self.sell_time) if self.sell_time else None,
             LongTrade.BUY_ATTRS: self.buy_attrs,
             LongTrade.SELL_ATTRS: self.sell_attrs,
             LongTrade.TRADE_TYPE: "SHORT"
