@@ -22,7 +22,8 @@ class LongTrade:
         self.total_amount = money
         self.trading_fee_paid = 0
 
-        self.effective_amount = self.__amount_left_after_fee(self.total_amount)
+        # self.effective_amount = self.__amount_left_after_fee(self.total_amount)
+        self.effective_amount = self.total_amount
         self.trading_fee_paid = self.trading_fee_paid + (self.total_amount - self.effective_amount)
 
         self.buy_price = price
@@ -47,9 +48,11 @@ class LongTrade:
         self.sell_price = price
         self.sell_time = tick.window_end_epoch_seconds
         amount_returned = self.sell_price * self.total_stocks
-        after_fee = self.__amount_left_after_fee(amount_returned)
-        self.trading_fee_paid = self.trading_fee_paid + (amount_returned - after_fee)
-        self.profit_or_loss = after_fee - self.total_amount
+        # after_fee = self.__amount_left_after_fee(amount_returned)
+        after_fee = amount_returned
+        # self.trading_fee_paid = self.trading_fee_paid + (amount_returned - after_fee)
+        profit_or_loss = after_fee - self.total_amount
+        self.profit_or_loss = profit_or_loss - 2 * self.trading_fee_percentage * 0.01 * self.total_amount
         margin_percentage = (self.profit_or_loss / self.total_amount) * 100
         fpr = '.3f'
         # print("Stock : {}\tBuy Date: {}\tBuy Price: {}\tSell Price: {}\tsold_early: {}\tmargin: {}\tmargin_percentage: {}, trading_fee: {}\n\n"
@@ -96,8 +99,9 @@ class ShortTrade:
         self.symbol = symbol
         self.trading_fee_percentage = trading_fee_per
         self.total_amount = money
-        self.effective_amount = self.__amount_left_after_fee(self.total_amount)
-
+        # self.effective_amount = self.__amount_left_after_fee(self.total_amount)
+        self.effective_amount = self.total_amount
+        # print("total_amount: {}\teffective_amount: {}".format(self.total_amount, self.effective_amount))
         self.sell_price = price
         self.sell_time = sell_tick.window_end_epoch_seconds
         self.sell_attrs = attrs
@@ -110,22 +114,26 @@ class ShortTrade:
         self.profit_or_loss = None
         self.profit_or_loss_with_fee = None
 
-    def __amount_left_after_fee(self, amount):
-        # lending interest is not taken into account
-        effective_amount = amount * (1 - self.trading_fee_percentage / 100)
-        return effective_amount
-
-    def __amount_needed_for_after_fee_amount(self, amount):
-        needed = amount / (1 - self.trading_fee_percentage / 100)
-        return needed
+    # def __amount_left_after_fee(self, amount):
+    #     # lending interest is not taken into account
+    #     effective_amount = amount * (1 - self.trading_fee_percentage / 100)
+    #     return effective_amount
+    #
+    # def __amount_needed_for_after_fee_amount(self, amount):
+    #     needed = amount / (1 - self.trading_fee_percentage / 100)
+    #     return needed
 
     def buy_at(self, tick: MarketTickEntity, attrs: dict, price):
         self.buy_attrs = attrs
         self.buy_price = price
         self.buy_time = tick.window_end_epoch_seconds
         buy_amount = self.buy_price * self.total_stocks
-        amount_spent = self.__amount_needed_for_after_fee_amount(buy_amount)
-        self.profit_or_loss = self.total_amount - amount_spent
+        # amount_spent = self.__amount_needed_for_after_fee_amount(buy_amount)
+        amount_spent = buy_amount
+        profit_or_loss = self.total_amount - amount_spent
+        self.profit_or_loss = profit_or_loss - 2 * self.trading_fee_percentage * 0.01 * self.total_amount
+        # print("total_amount: {}\teffective_amount:{}\tstocks: {}\tprice: {}\tbuy_amount: {}\tamount_spent:{}\tpnl: {}"
+        #       .format(self.total_amount, self.effective_amount, self.total_stocks, self.sell_price, buy_amount, amount_spent, self.profit_or_loss))
 
     def to_json(self):
         result = {

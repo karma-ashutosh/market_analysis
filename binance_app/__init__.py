@@ -105,7 +105,7 @@ def analyze_binance_old_data():
     fast, slow, signal = (12, 26, 9)
     long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
                                                  macd_params=(fast, slow, signal), money=10000,
-                                                 profit_threshold=5, stoploss_threshold=0.15, trading_fee=.1)
+                                                 profit_threshold=5, stoploss_threshold=.3, trading_fee=.1)
     save_csv_and_json_output(all_trades,
                              BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}".format(fast, slow, signal))
     save_csv_and_json_output(long,
