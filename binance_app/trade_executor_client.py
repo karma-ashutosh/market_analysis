@@ -123,17 +123,19 @@ class BinanceTradeExecutor(TradeExecutor):
 
 
 class AcademicTradeExecutor(TradeExecutor):
-    def __init__(self, symbol, money):
+    def __init__(self, symbol, money, trading_percentage_fee):
         super().__init__(symbol)
         self.__long_trades = []
         self.__short_trades = []
         self.__cur_long_trade: LongTrade = None
         self.__cur_short_trade: ShortTrade = None
         self.money = money
+        self.trading_percentage_fee = trading_percentage_fee
 
     def buy(self, tick: MarketTickEntity, opp: Opportunity, price) -> TradeResult:
         if not self.__cur_long_trade:
-            self.__cur_long_trade = LongTrade(self.symbol, tick, opp.attrs, self.money, price=price)
+            self.__cur_long_trade = LongTrade(self.symbol, tick, opp.attrs, self.money, price,
+                                              self.trading_percentage_fee)
             app_logger.info("Buying {} at price {}".format(self.symbol, tick.close if not price else price))
             return TradeResult(TradeType.BUY, self.__cur_long_trade.buy_price, self.__cur_long_trade.total_stocks)
 
@@ -150,7 +152,8 @@ class AcademicTradeExecutor(TradeExecutor):
 
     def take_short(self, tick: MarketTickEntity, opportunity: Opportunity, price) -> TradeResult:
         if not self.__cur_short_trade:
-            self.__cur_short_trade = ShortTrade(self.symbol, tick, opportunity.attrs, self.money, price)
+            self.__cur_short_trade = ShortTrade(self.symbol, tick, opportunity.attrs, self.money, price,
+                                                self.trading_percentage_fee)
             app_logger.info("Shorting {} at price {}".format(self.symbol, tick.close if not price else price))
             return TradeResult(TradeType.SELL, self.__cur_short_trade.sell_price, self.__cur_short_trade.total_stocks)
 
@@ -171,4 +174,3 @@ class AcademicTradeExecutor(TradeExecutor):
                                                       self.__short_trades)]
 
         return longs, shorts
-

@@ -16,9 +16,9 @@ class LongTrade:
     SELL_ATTRS = "sell_attrs"
     TRADE_TYPE = "trade_type"
 
-    def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict, money, price):
+    def __init__(self, symbol, buy_tick: MarketTickEntity, attrs: dict, money, price, trading_fee_percentage):
         self.symbol = symbol
-        self.trading_fee_percentage = 0.1
+        self.trading_fee_percentage = trading_fee_percentage
         self.total_amount = money
         self.trading_fee_paid = 0
 
@@ -92,9 +92,9 @@ class LongTrade:
 
 
 class ShortTrade:
-    def __init__(self, symbol, sell_tick: MarketTickEntity, attrs: dict, money, price):
+    def __init__(self, symbol, sell_tick: MarketTickEntity, attrs: dict, money, price, trading_fee_per):
         self.symbol = symbol
-        self.trading_fee_percentage = 0.1
+        self.trading_fee_percentage = trading_fee_per
         self.total_amount = money
         self.effective_amount = self.__amount_left_after_fee(self.total_amount)
 
