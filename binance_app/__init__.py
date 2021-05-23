@@ -57,7 +57,7 @@ def __profit_loss_analysis(trades, symbol):
     return result
 
 
-def file_analyzer(event_mapper, file_connection, symbol, macd_params=(12, 26, 9)):
+def file_analyzer(event_mapper, file_connection, symbol, macd_params=(12, 26, 9), money=100000):
     factory = Factory()
     fast, slow, signal = macd_params
     params = {
@@ -69,9 +69,9 @@ def file_analyzer(event_mapper, file_connection, symbol, macd_params=(12, 26, 9)
                                                        exit_strategy=PositionStrategy.CUSTOM_MACD,
                                                        min_sample_window=40, entry_params=params,
                                                        exit_params=params)
-    trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol)
-    trader = ProfessionalTrader(trading_client, analyzer, take_longs=True, take_shorts=False, profit_threshold=80,
-                                stoploss_threshold=.15)
+    trading_client: AcademicTradeExecutor = factory.analytical_trade_executor(symbol, money)
+    trader = ProfessionalTrader(trading_client, analyzer, take_longs=True, take_shorts=False, profit_threshold=8,
+                                stoploss_threshold=.15, moving_stoploss=True)
     manager = StreamManager(trader, lambda j_elem: event_mapper(j_elem, symbol), min_event_delay=-1)
 
     file_connection(processor=lambda event: manager.consume(event), symbol=symbol)
@@ -103,7 +103,7 @@ def analyze_binance_old_data():
     file_connection = factory.open_file_kline_connection
     fast, slow, signal = (12, 26, 9)
     long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
-                                                 macd_params=(fast, slow, signal))
+                                                 macd_params=(fast, slow, signal), money=10000)
     save_csv_and_json_output(all_trades,
                              BINANCE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}".format(fast, slow, signal))
     save_csv_and_json_output(all_trades,
@@ -116,6 +116,7 @@ def analyze_binance_old_data():
 
 
 def analyze_kite_old_data():
+    net_profit = 0
     for year in ["2019_20", "2018_19", "2017_18", "2016_17", "2015_16", "2021"]:
     # for year in ["2019_20", "2018_19"]:
         all_pnl = []
@@ -128,7 +129,7 @@ def analyze_kite_old_data():
             file_connection = factory.open_file_kite_connection_with_path(KITE.DATA_FILE_READ_BASE_PATH + year + "/")
             fast, slow, signal = (12, 26, 9)
             long, short, all_trades, pnl = file_analyzer(event_mapper, file_connection, symbol,
-                                                         macd_params=(fast, slow, signal))
+                                                         macd_params=(fast, slow, signal), money=100000)
             # save_csv_and_json_output(all_trades,
             #                          KITE.DATA_FILE_WRITE_BASE_PATH + "trades_{}_{}_{}_{}".format(symbol, fast, slow,
             #                                                                                       signal))
@@ -143,8 +144,11 @@ def analyze_kite_old_data():
             #     json.dump(pnl, handle, indent=1)
 
             all_pnl.append(pnl[1])
+            net_profit = net_profit + pnl[1]['net_profit']
 
         save_csv_and_json_output(all_pnl, KITE.DATA_FILE_WRITE_BASE_PATH + "/stoploss_and_threshold/" + "all_pnl_{}".format(year))
+    print("Net profit from strategy: {}".format(net_profit))
+
 
 
 if __name__ == '__main__':

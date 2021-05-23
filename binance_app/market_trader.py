@@ -73,13 +73,13 @@ class ProfessionalTrader(MarketTrader):
                     # obv_strength = sum(TechCalc.OBV(self.opportunity_finder.cur_df))
                     # print("obv_strength: {}".format(obv_strength))
                     # if obv_strength > 3:
-                    long_result: TradeResult = self.trade_executor.buy(event, opportunity)
+                    long_result: TradeResult = self.trade_executor.buy(event, opportunity, event.close)
                     self.current_long_pos = long_result
                     trade_executed = True
                     self.prev_high = long_result.trade_price
             elif opportunity.direction is IndicatorDirection.NEGATIVE:
                 if self.current_long_pos:
-                    long_result = self.trade_executor.sell(event, opportunity)
+                    long_result = self.trade_executor.sell(event, opportunity, event.close)
                     self.current_long_pos = None
                     trade_executed = True
             else:
@@ -88,10 +88,10 @@ class ProfessionalTrader(MarketTrader):
         short_result = None
         if self.take_shorts:
             if opportunity.direction is IndicatorDirection.POSITIVE:
-                short_result = self.trade_executor.square_short(event, opportunity)
+                short_result = self.trade_executor.square_short(event, opportunity, event.close)
                 trade_executed = True
             elif opportunity.direction is IndicatorDirection.NEGATIVE:
-                short_result = self.trade_executor.take_short(event, opportunity)
+                short_result = self.trade_executor.take_short(event, opportunity, event.close)
                 trade_executed = True
             else:
                 short_result = {'opp_type': opportunity.direction.name}

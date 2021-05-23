@@ -44,8 +44,8 @@ class Factory:
         return BinanceTradeExecutor(self.client, symbol)
 
     @staticmethod
-    def analytical_trade_executor(symbol) -> AcademicTradeExecutor:
-        return AcademicTradeExecutor(symbol)
+    def analytical_trade_executor(symbol, money) -> AcademicTradeExecutor:
+        return AcademicTradeExecutor(symbol, money)
 
 
 if __name__ == '__main__':
